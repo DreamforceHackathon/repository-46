@@ -68,28 +68,28 @@
                        trace
                        :Description)]
           {:state (merge state {:user cid})
-           :text desc}))))
-
+           :text desc})
+        (println "tell-more: no name"))))
 
 (defn handle
   [x]
-  (let [{intent :intent entities :entities text :text state :state} x
-        state (-> state js/JSON.parse (js->clj :keywordize-keys true))
-        _ (debug "Text received from devices " text " for intent : " intent " entities " entities)
-        {text :text
-         state :state} (match [intent]
+  (go (let [{intent :intent entities :entities text :text state :state} x
+         state (-> state js/JSON.parse (js->clj :keywordize-keys true))
+         _ (debug "Text received from devices " text " for intent : " intent " entities " entities)
+         {text :text
+          state :state} (match [intent]
 
-                              ["drive_to"]
-                              (<! (drive-to entities state))
+          ["drive_to"]
+          (<! (drive-to entities state))
 
-                              ["who_attend"]
-                              (<! (who-attend entities state))
+          ["who_attend"]
+          (<! (who-attend entities state))
 
-                              ["tell_more"]
-                              (<! (tell-more entities state))
+          ["tell_more"]
+          (<! (tell-more entities state))
 
-                              :else
-                              {:state state
-                               :text "Sorry, I didn't get that"})]
-    {:state (-> state clj->js js/JSON.stringify)
-    :text text}))
+          :else
+          {:state state
+           :text "Sorry, I didn't get that"})]
+     {:state (-> state clj->js js/JSON.stringify)
+      :text text})))

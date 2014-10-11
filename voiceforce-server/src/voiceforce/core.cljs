@@ -53,7 +53,17 @@
 
   ;; (do! "{\"wit\":{\"stats\": {\"total_time\":13},\"msg_id\": \"fcca6b96-5bcc-4f9b-aecd-1001c10cb787\",\"_text\": \"driving to Uber\",\"outcomes\": [{\"_text\": \"driving to Uber\",\"intent\": \"who_attend\",\"entities\": {\"account\": [{\"value\": \"Uber\"}]},\"confidence\":0.505}]}, \"state\":{\"opp\":\"006o0000004ny83\"}}")
 
-(do! "{\"wit\":{\"stats\": {\"total_time\":13},\"msg_id\": \"fcca6b96-5bcc-4f9b-aecd-1001c10cb787\",\"_text\": \"driving to Uber\",\"outcomes\": [{\"_text\": \"driving to Uber\",\"intent\": \"tell_more\",\"entities\": {\"name\": [{\"value\": \"Edna\"}]},\"confidence\":0.505}]}, \"state\":{\"attendees\":[{\"Name\":\"Edna Frank\",\"Id\":\"003o000000BTNrm\"}]}}")
+(println (pr-str (js->clj (js/JSON.parse "{\"wit\":{\"stats\": {\"total_time\":13},\"msg_id\": \"fcca6b96-5bcc-4f9b-aecd-1001c10cb787\",\"_text\": \"driving to Uber\",\"outcomes\": [{\"_text\": \"driving to Uber\",\"intent\": \"tell_more\",\"entities\": {\"name\": [{\"value\": \"Edna\"}]},\"confidence\":0.505}]}, \"state\":{\"attendees\":[{\"Name\":\"Edna Frank\",\"Id\":\"003o000000BTNrm\"}]}}")
+                      :keywordize-keys true)))
+
+(do! (-> {:intent "tell_more"
+          :text "driving to Uber"
+          :entities {:name [{:value "Edna"}]}
+          :state (js/JSON.stringify
+                  (clj->js {:attendees [{:Name "Edna Frank", :Id "003o000000BTNrm"}]}))}
+         clj->js
+         js/JSON.stringify
+         trace))
 
   )
 
