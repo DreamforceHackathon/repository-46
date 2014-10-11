@@ -53,7 +53,7 @@ public class MyActivity extends ActionBarActivity implements IWitListener, DataA
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_my);
 
-        String accessToken = "EWQK5YI4BXIEYGGU5XJOKLUMOEYXI5FD";
+        String accessToken = "JBZN5A6EB5D4Q6WBRBYAC35JXUQOQORJ";
         _wit = new Wit(accessToken, this);
 
         _gac = new GoogleApiClient
@@ -126,7 +126,7 @@ public class MyActivity extends ActionBarActivity implements IWitListener, DataA
         TextView tv = (TextView) findViewById(R.id.status);
         tv.setText("Got Event!!!");
 
-        Log.d("handled", "got some data " + dataEvents.toString());
+        Log.d("handled", "got some data ");
         for (DataEvent event : dataEvents) {
             Log.d("handled", "event data: "+event);
         }
@@ -150,7 +150,7 @@ public class MyActivity extends ActionBarActivity implements IWitListener, DataA
         ((TextView) findViewById(R.id.jsonView)).setText(Html.fromHtml("<span><b>Intent: " + intent +
                 "<b></span><br/>") + jsonOutput +
                 Html.fromHtml("<br/><span><b>Confidence: " + confidence + "<b></span>"));
-        //sendMessage(intent);
+        sendMessage(intent, entities);
     }
 
     @Override
@@ -187,7 +187,6 @@ public class MyActivity extends ActionBarActivity implements IWitListener, DataA
             @Override
             public void onOpen(ServerHandshake serverHandshake) {
                 Log.i("Websocket", "Opened");
-                sendMessage("drive_to");
             }
 
             @Override
@@ -225,29 +224,12 @@ public class MyActivity extends ActionBarActivity implements IWitListener, DataA
         mWebSocketClient.connect();
     }
 
-    public void sendMessage(String wit_response) {
-        mWebSocketClient.send("{\n" +
-                "   \"state\":\"{\n" +
-                "   }\",\n" +
-                "   \"wit\":{\n" +
-                "      \"msg_id\":\"8e4c7268-2377-4920-9e13-b3135ccae8db\",\n" +
-                "      \"_text\":\"Here is a new sentence\",\n" +
-                "      \"outcomes\":[\n" +
-                "         {\n" +
-                "            \"_text\":\"Here is a new sentence\",\n" +
-                "            \"intent\":\""+ wit_response + "\",\n" +
-                "            \"entities\":{\n" +
-                "               \"on_off\":[\n" +
-                "                  {\n" +
-                "                     \"value\":\"off\"\n" +
-                "                  }\n" +
-                "               ]\n" +
-                "            },\n" +
-                "            \"confidence\":0.652\n" +
-                "         }\n" +
-                "      ]\n" +
-                "   }\n" +
-                "}");
+    public void sendMessage(String intent, HashMap<String, JsonElement> entities) {
+        Gson gson = new Gson();
+        VoiceForceRequest request = new VoiceForceRequest("{}", intent, entities);
+        String r = gson.toJson(request);
+        Log.d("VoiceForce", "Sending " + r);
+        mWebSocketClient.send(r);
     }
 
 

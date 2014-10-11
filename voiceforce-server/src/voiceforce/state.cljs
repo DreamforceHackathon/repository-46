@@ -34,14 +34,9 @@
 
 (defn handle
   [x]
-  (let [{wit-res :wit state :state} x
-        _ (trace state)
-        state (-> state js/JSON.parse js->clj :keywordize-keys true)
-        text (:_text wit-res)
-        outcome (-> wit-res :outcomes first)
-        intent (-> outcome :intent)
-        entities (-> outcome :entities)
-        _ (debug "Text received from devices " text " for outcome : " (pr-str outcome))
+  (let [{intent :intent entities :entities text :text state :state} x
+        state (-> state js/JSON.parse (js->clj :keywordize-keys true))
+        _ (debug "Text received from devices " text " for intent : " intent " entities " entities)
         {text :text
          state :state} (match [intent]
 
