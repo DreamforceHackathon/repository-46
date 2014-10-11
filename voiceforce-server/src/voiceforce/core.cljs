@@ -17,7 +17,7 @@
   (-> msg
       js/JSON.parse
       (js->clj :keywordize-keys true)
-      state/req))
+      state/handle))
 
 (def WebSocketServer (.-Server (js/require "ws")))
 
@@ -34,6 +34,7 @@
 
                                (debug "Receiving: " msg)
                                (try (->> (process-msg msg)
+
                                          clj->js
                                          js/JSON.stringify
                                          (.send ws))

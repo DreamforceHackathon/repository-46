@@ -1,5 +1,7 @@
 (ns voiceforce.state
   (:require [voiceforce.util :refer [trace log debug]]
+            [voiceforce.sfdc :as sf]
+            [clojure.string :as string]
             [cljs.nodejs :as nodejs]
             [cljs.core.async :as async :refer [<! >! take! put! chan timeout close!]]
             [cljs.core.match])
