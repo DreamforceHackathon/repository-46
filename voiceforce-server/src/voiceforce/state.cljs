@@ -74,40 +74,40 @@
 
 (defn news
   [entities state]
-  (let [account (-> entities :account first :value)]
-    {:state {:account account}
-     :text "That sounds great!"}))
+  (go (let [account (-> entities :account first :value)]
+        {:state {:account account}
+         :text "That sounds great!"})))
 
 (defn update-opportunity
   [entities state]
-  (let [amount (-> entities :amount_of_money first :value)]
-    {:state (merge state {:amount amount})
-     :text "Done"}))
+  (go (let [amount (-> entities :amount_of_money first :value)]
+        {:state (merge state {:amount amount})
+         :text "Done"})))
 
 (defn inform
   [entities state]
-  (let [name (-> entities :name first :value)
-        account (-> state :account)
-        amount (-> state :amount)
-        text (util/format "to %s on Chatter: \"great news on %s. opportunity size upgraded to %s\" -- Ok" name account amount)]
-    {:state state
-     :text text}))
+  (go (let [name (-> entities :name first :value)
+            account (-> state :account)
+            amount (-> state :amount)
+            text (.format util "to %s on Chatter: \"great news on %s. opportunity size upgraded to %s\" -- Ok" name account amount)]
+        {:state state
+         :text text})))
 
 (defn task
   [entities state]
-  (let [action (-> entities :action first :value)
-        account (-> state :account)
-        amount (-> state :amount)
-        text (match [action]
+  (go (let [action (-> entities :action first :value)
+            account (-> state :account)
+            amount (-> state :amount)
+            text (match [action]
 
-                    ["submit_pricing_approval"]
-                    "Done"
+                        ["submit_pricing_approval"]
+                        "Done"
 
-                    ["send_quote"]
-                    (let [d (-> entities :datetime first :from)]
-                      "I've added a reminder for the quote"))]
-    {:state state
-     :text text}))
+                        ["send_quote"]
+                        (let [d (-> entities :datetime first :from)]
+                          "I've added a reminder for the quote"))]
+        {:state state
+         :text text})))
 
 (defn handle
   [x]
@@ -124,19 +124,19 @@
                               (<! (who-attend entities state))
 
                               ["tell_more"]
-                              (tell-more entities state)
+                              (<! (tell-more entities state))
 
                               ["news"]
-                              (news entities state)
+                              (<! (news entities state))
 
                               ["update_opportunity"]
-                              (update-opportunity entities state)
+                              (<! (update-opportunity entities state))
 
                               ["inform"]
-                              (inform entities state)
+                              (<! (inform entities state))
 
                               ["task"]
-                              (task entities state)
+                              (<! (task entities state))
 
                               :else
                               {:state state
