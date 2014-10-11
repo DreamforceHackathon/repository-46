@@ -1,0 +1,25 @@
+{
+  "name": "voiceforce",
+  "version": "0.0.1",
+  "description": "Salesforce app",
+  "main": "voiceforce",
+  "dependencies": {
+    "express": "^4.7.1",
+    "request": "^2.39.0",
+    "ws": "^0.4.31"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/wit-ai/voiceforce-server.git"
+  },
+  "author": "",
+  "license": "MIT",
+  "homepage": "https://github.com/wit-ai/voiceforce-server",
+  "engines": {
+    "node": "0.10.x"
+  }
+}
