@@ -81,8 +81,13 @@
 
 (defn update-opportunity
   [entities state]
-  (go (let [amount (-> entities :amount_of_money first :value)]
-        {:state (merge state {:amount amount})
+  (go (let [account (-> entities :account first :value)
+            op-id (-> (sf/name->opportunity account "Account")
+                      <!
+                      :Id)
+            amount (-> entities :amount_of_money first :value)]
+        (<! (sf/update-opportunity-size op-id amount))
+        {:state (merge state {:op op-id :amount amount})
          :text "Done"})))
 
 (defn inform

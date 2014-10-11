@@ -139,7 +139,7 @@ SELECT RelationId FROM EventRelation WHERE EventId = '" eid "'
          ]
         attendees)))
 
-(defn upgrade-opportunity-size [opp-id to]
+(defn update-opportunity-size [opp-id to]
   (go (let [x (req "PATCH" (str "/sobjects/Opportunity/" opp-id)
                    {:body (js/JSON.stringify (clj->js {"Amount" to}))
                     :headers {:Content-Type "application/json"}})]
