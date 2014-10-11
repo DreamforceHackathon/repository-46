@@ -55,7 +55,7 @@
       (debug "who-attend " entities state)
       {:state {:op op-id
                :attendees attendees}
-       :text attendees})))
+       :text attendees-string})))
 
 ;; TODO how can I ask about missing name entity?
 (defn tell-more
