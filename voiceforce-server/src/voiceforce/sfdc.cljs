@@ -6,10 +6,10 @@
 (def cons-key "3MVG9xOCXq4ID1uGUZEDkWbuTVfqOqP3IWRgPCy.sxHJ1edmupOjoYnEnuM1KrGWPF3QBa3yYEYHvz5lu038y")
 (def cons-secret "8065890795745227552")
 (def secret-token "rC7fjvarT8AOYemUI68abKEQ")
-(def access-token "00Do0000000ciyx!ARQAQAr6iXYgniJIm6vBRaIfsPwGvf_3vqoENmkDgpvEs9XYfH6MGeChjU4NdkpclzZgydKPJvPZ6YneRqxvTcG.8PnMCCcr")
+(def access-token "00Do0000000ciyx!ARQAQC48oZL9PuxKbGwH3TAlbL497ckLadU_kH9r8R1UMkpIoxBU9LKBhjjpAPiBqnau2BRwzZccQC7iufnNX6Ok5LHZcYwf")
 
 (defn sf-url [x]
-  (str "https://na17.salesforce.com/services/data/v26.0" x))
+  (str "https://na17.salesforce.com/services/data/v32.0" x))
 
 (defn trace [x]
   (println "TRACE" x)
@@ -21,6 +21,7 @@
                merge
                {:method meth
                 :url  (sf-url url)
+                :json true
                 :headers {:Authorization (str "Bearer " access-token)}
                 }
                opts)]
@@ -38,7 +39,7 @@
                  :else
                  (js/console.log
                   (str "ERROR sending req to salesforce (http " (.-statusCode res) ")")
-                  (js->clj res :keywordize-keys true)))))
+                  (js->clj (.toString res) :keywordize-keys true)))))
     out))
 
 (defn search
@@ -56,17 +57,26 @@
   [q]
   (req "GET" "/query" {:qs {:q q}}))
 
-(defn attendees [x]
-  )
+;; -----------------------------------------------------------------------------
+;; Contact
 
 (defn more-details
   "Given a contact id, gives everything we got."
   [x]
-  (let []
-    (req "GET" (str "/sobjects/Contact/" x))))
+  (req "GET" (str "/sobjects/Contact/" x)))
 
 ;; -----------------------------------------------------------------------------
 ;; Opportunities
+
+(defn account->opportunity [x]
+  (go (let [o (-> (query (str "
+                           SELECT Opportunity.Id, Opportunity.Name
+                           FROM Opportunity
+                           WHERE Opportunity.AccountId = '" x "'"))
+                  <!
+                  :records
+                  first)]
+        (select-keys o [:Name :Id]))))
 
 (defn contact->opportunity [x]
   (go (let [o (-> (query (str "
@@ -83,16 +93,51 @@
                   first)]
         (select-keys o [:Name :Id]))))
 
-(defn name->opportunity [name]
+(defn name->opportunity
+  "given a name and a type of sobjects (Contact, Account, etc.)"
+  [name type]
   (go (if-let [id (->> (search name)
                        <!
-                       (filter (comp (partial = "Contact") :type :attributes))
+                       (filter (comp (partial = type) :type :attributes trace))
                        first
                        :Id)
                ]
-        (<! (contact->opportunity id))
-        (println "contact not found"))))
+        (<! (account->opportunity id))
+        (println "account not found"))))
 
+(defn get-latest-update
+  "given a opp id, returns latest update"
+  [op-id]
+  (go (let [r (-> (req "GET" (str "/chatter/feeds/record/" op-id "/feed-elements"))
+                  <!
+                  :elements
+                  first
+                  :header
+                  :text
+                  )]
+        r)))
+
+(defn opportunity->last-event [x]
+  (go (let [r (-> (query (str "SELECT Id, WhatId FROM Event WHERE WhatId = '" x "'
+                               ORDER BY LastModifiedDate DESC NULLS FIRST"))
+               <!
+               :records
+               first)
+         ]
+        r)))
+
+(defn opportunity->attendees [x]
+  (go (let [r (<! (opportunity->last-event x))
+            eid (:Id r)
+            attendees (-> (query (str "SELECT Id, Name, Title FROM Contact WHERE Contact.Id IN (
+SELECT RelationId FROM EventRelation WHERE EventId = '" eid "'
+)"))
+               <!
+               :records
+               trace
+               (->> (map #(select-keys % [:Name :Title]))))
+         ]
+        attendees)))
 
 (defn upgrade-opportunity-size [opp-id to]
   (go (let [x (req "PATCH" (str "/sobjects/Opportunity/" opp-id)
