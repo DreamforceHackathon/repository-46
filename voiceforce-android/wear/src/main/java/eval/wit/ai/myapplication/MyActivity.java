@@ -1,32 +1,22 @@
 package eval.wit.ai.myapplication;
 
 import android.app.Activity;
-import android.app.Fragment;
 import android.os.Bundle;
 import android.support.wearable.view.WatchViewStub;
 import android.util.Log;
-import android.view.LayoutInflater;
 import android.view.View;
-import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.TextView;
 
-import com.google.android.gms.common.api.PendingResult;
-import com.google.android.gms.common.api.ResultCallback;
+import com.google.android.gms.common.api.GoogleApiClient;
 import com.google.android.gms.wearable.DataApi;
 import com.google.android.gms.wearable.DataEventBuffer;
 import com.google.android.gms.wearable.DataMap;
-import com.google.android.gms.wearable.Node;
-import com.google.android.gms.wearable.NodeApi;
 import com.google.android.gms.wearable.PutDataMapRequest;
-import com.google.android.gms.wearable.PutDataRequest;
 import com.google.android.gms.wearable.Wearable;
-import com.google.android.gms.common.api.GoogleApiClient;
-
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.math.BigInteger;
 
 import ai.wit.sdk.IWitCoordinator;
 import ai.wit.sdk.WitMic;
@@ -93,16 +83,13 @@ public class MyActivity extends Activity implements GoogleApiClient.ConnectionCa
 
     public void sendBytesToHandled(byte[] bytes)
     {
-
         final PutDataMapRequest putRequest = PutDataMapRequest.create("/SAMPLE"+Math.random());
         final DataMap map = putRequest.getDataMap();
 
         map.putByteArray("witaudiodata", bytes);
 
         Wearable.DataApi.putDataItem(_gac, putRequest.asPutDataRequest());
-
     }
-
 
     @Override
     public void onDataChanged(DataEventBuffer dataEvents) {
@@ -135,6 +122,7 @@ public class MyActivity extends Activity implements GoogleApiClient.ConnectionCa
         _witMic = new WitMic(this, true);
         _witMic.startRecording();
         InputStream inputStream = _witMic.getInputStream();
+
         ForwardAudioSampleThread ft = new ForwardAudioSampleThread(inputStream, this);
         ft.start();
         mTextView.setText("Listening...");

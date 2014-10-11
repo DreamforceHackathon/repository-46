@@ -18,12 +18,16 @@ import android.widget.TextView;
 import com.google.android.gms.common.api.GoogleApiClient;
 import com.google.android.gms.common.api.GoogleApiClient.ConnectionCallbacks;
 import com.google.android.gms.common.api.GoogleApiClient.OnConnectionFailedListener;
+import com.google.android.gms.wearable.DataApi;
+import com.google.android.gms.wearable.DataEvent;
+import com.google.android.gms.wearable.DataEventBuffer;
 import com.google.android.gms.wearable.Wearable;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 
+import org.java_websocket.WebSocket;
 import org.java_websocket.client.WebSocketClient;
 import org.java_websocket.handshake.ServerHandshake;
 
@@ -33,19 +37,21 @@ import java.net.URISyntaxException;
 import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Timer;
+import java.util.TimerTask;
 
 import ai.wit.sdk.IWitListener;
 import ai.wit.sdk.Wit;
 
 
-public class MyActivity extends ActionBarActivity implements IWitListener, ConnectionCallbacks, OnConnectionFailedListener {
+public class MyActivity extends ActionBarActivity implements IWitListener, ConnectionCallbacks, OnConnectionFailedListener, DataApi.DataListener {
 
     public static String TAG = "handled";
     GoogleApiClient _gac;
     private WebSocketClient mWebSocketClient;
+    private Timer _t;
     TextToSpeech ttobj;
     Wit _wit;
-    WitAudioPiper _witAudioPiper;
     String state;
 
     Handler _handler = new Handler() {
@@ -77,11 +83,10 @@ public class MyActivity extends ActionBarActivity implements IWitListener, Conne
                     @Override
                     public void onInit(int status) {
                         if (status != TextToSpeech.ERROR) {
-                            ttobj.setLanguage(Locale.US);
+                            ttobj.setLanguage(Locale.UK);
                         }
                     }
                 });
-        //_witAudioPiper = new WitAudioPiper();
     }
 
 
@@ -98,18 +103,27 @@ public class MyActivity extends ActionBarActivity implements IWitListener, Conne
         // automatically handle clicks on the Home/Up button, so long
         // as you specify a parent activity in AndroidManifest.xml.
         int id = item.getItemId();
-        if (id == R.id.action_settings) {
-            return true;
-        }
-        return super.onOptionsItemSelected(item);
+        return id == R.id.action_settings || super.onOptionsItemSelected(item);
     }
 
     @Override
     protected void onStart() {
         super.onStart();
-        //Wearable.DataApi.addListener(_gac, this);
+        Wearable.DataApi.addListener(_gac, this);
         _gac.connect();
-        connectWebSocket();
+        _t = new Timer("WS", true);
+        TimerTask task = new TimerTask() {
+            @Override
+            public void run() {
+                if (mWebSocketClient == null ||
+                    mWebSocketClient.getReadyState() == WebSocket.READYSTATE.CLOSED ||
+                        mWebSocketClient.getReadyState() == WebSocket.READYSTATE.CLOSING ||
+                        mWebSocketClient.getReadyState() == WebSocket.READYSTATE.NOT_YET_CONNECTED) {
+                    connectWebSocket();
+                }
+            }
+        };
+        _t.scheduleAtFixedRate(task, 0, 1000);
     }
 
     @Override
@@ -117,7 +131,7 @@ public class MyActivity extends ActionBarActivity implements IWitListener, Conne
         TextView tv = (TextView) findViewById(R.id.status);
         tv.setText("Connected");
         Log.d(TAG, "onConnected");
-        //Wearable.DataApi.addListener(_gac, this);
+        Wearable.DataApi.addListener(_gac, this);
     }
 
     @Override
@@ -130,26 +144,21 @@ public class MyActivity extends ActionBarActivity implements IWitListener, Conne
         Log.d(TAG, "onConnectionFailed");
     }
 
-//    @Override
-//    public void onDataChanged(DataEventBuffer dataEvents) {
-//
-//        byte[] audioBytes;
-//        for (DataEvent event : dataEvents) {
-//            if (event.getType() == DataEvent.TYPE_DELETED) {
-//                Log.d(TAG, "DataItem deleted: " + event.getDataItem().getUri());
-//            } else if (event.getType() == DataEvent.TYPE_CHANGED) {
-////                Log.d(TAG, "DataItem changed: " + event.getDataItem().getUri());
-//                audioBytes = event.getDataItem().getData();
-//
-//                try {
-//                    _witAudioPiper.gotSamples(audioBytes);
-//                } catch (IOException e) {
-//                    e.printStackTrace();
-//                }
-//
-//            }
-//        }
-//    }
+    @Override
+    public void onDataChanged(DataEventBuffer dataEvents) {
+
+        byte[] audioBytes;
+        for (DataEvent event : dataEvents) {
+            if (event.getType() == DataEvent.TYPE_DELETED) {
+                Log.d(TAG, "DataItem deleted: " + event.getDataItem().getUri());
+            } else if (event.getType() == DataEvent.TYPE_CHANGED) {
+//                Log.d(TAG, "DataItem changed: " + event.getDataItem().getUri());
+                audioBytes = event.getDataItem().getData();
+
+                //_witAudioPiper.gotSamples(audioBytes);
+            }
+        }
+    }
 
     // WIT INTEGRATION
 
@@ -254,7 +263,7 @@ public class MyActivity extends ActionBarActivity implements IWitListener, Conne
 
             @Override
             public void onError(Exception e) {
-                Log.i("Websocket", "Error " + e.getMessage());
+                Log.i("Websocket", "Error " + e);
             }
         };
         mWebSocketClient.connect();
@@ -265,7 +274,9 @@ public class MyActivity extends ActionBarActivity implements IWitListener, Conne
         VoiceForceRequest request = new VoiceForceRequest(state, intent, entities);
         String r = gson.toJson(request);
         Log.d("VoiceForce", "Sending " + r);
-        mWebSocketClient.send(r);
+        if (mWebSocketClient.getReadyState() == WebSocket.READYSTATE.OPEN) {
+            mWebSocketClient.send(r);
+        }
     }
 
 }
