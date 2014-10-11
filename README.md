@@ -18,7 +18,7 @@ App: Good luck! Here is the latest update about this opportunity: bla bla bla [h
 -> opportunity-info
 
 User: Who will attend? [meeting_attendees_context]
--> meeting-attendes
+-> meeting-attendees
 
 App: Roberto Foo, CTO and Jessica Bar, CMO
 
@@ -45,7 +45,6 @@ User: And inform Jon [share]
 App: [to @Jon on Chatter: “great news on <c>. opportunity size upgraded to $200K”] OK
 
 User: version 1: Remind me to send the quote by next Friday [task]
-      version 2: Submit a pricing approval (etc.)
 -> set-reminder
 
 EXTRA

@@ -30,6 +30,7 @@
 ;; edna-id 003o000000BTNrm
 ;; event-id 00Uo0000001bbsMEAQ
 ;; event-relation-id 0REo0000000IbkiGAC
+;; willy-id 005o00000010d6YAAQ
 
 (defn drive-to
   [entities state]
@@ -51,20 +52,32 @@
                                 (map (fn [{:keys [Name Title] :as x}]
                                        (println x)
                                        (str Name ", " Title)))
-                                (string/join " and "))]
+                                (string/join " and "))
+          cnt (count attendees)]
       (debug "who-attend " entities state)
       {:state {:op op-id
                :attendees attendees}
-       :text attendees-string})))
+       :text (str cnt
+                  " "
+                  (if (= 1 cnt)
+                    "person is"
+                    "people are")
+                  " attending: " attendees-string)})))
 
 ;; TODO how can I ask about missing name entity?
 (defn tell-more
   [entities state]
   (go (if-let [name (-> entities :name first :value)]
-        (let [cid (->> state :attendees
-                       (filter #(re-find (js/RegExp. name) (:Name %)))
-                       first
-                       :Id)
+        (let [cid (or (->> state
+                           :attendees
+                           (filter #(re-find (js/RegExp. name) (:Name %)))
+                           first
+                           :Id)
+                      (->> (sf/search name)
+                           <!
+                           (filter (comp (partial = "Contact") :type :attributes))
+                           first
+                           :Id))
               desc (-> (sf/more-details cid)
                        <!
                        trace
@@ -95,23 +108,27 @@
   (go (let [name (-> entities :name first :value)
             account (-> state :account)
             amount (-> state :amount)
-            text (.format util "to %s on Chatter: \"great news on %s. opportunity size upgraded to %s\" -- Ok" name account amount)]
+            msg "Hello!"
+            text (.format util "OK. I let %s know." name)]
+        (<! (sf/chatter-send name msg))
         {:state state
          :text text})))
 
+(def days ["Sunday" "Monday" "Tuesday" "Wednesday" "Thursday"
+           "Friday" "Saturday"])
+(defn pretty-date
+  "Friday 30"
+  [iso-d]
+  (let [d (-> iso-d js/Date.)]
+    (str (get days (.getDay d)) " " (.getDate d))))
+
 (defn task
   [entities state]
-  (go (let [action (-> entities :action first :value)
-            account (-> state :account)
-            amount (-> state :amount)
-            text (match [action]
-
-                        ["submit_pricing_approval"]
-                        "Done"
-
-                        ["send_quote"]
-                        (let [d (-> entities :datetime first :from)]
-                          "I've added a reminder for the quote"))]
+  (go (let [action (-> entities :reminder first :value)
+            datetime (-> entities :datetime first :value)
+            text (str "Reminder set for " (pretty-date datetime))
+            wly "005o00000010d6YAAQ"]
+        (<! (sf/set-task wly datetime action))
         {:state state
          :text text})))
 
