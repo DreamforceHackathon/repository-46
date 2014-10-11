@@ -8,6 +8,8 @@
   (:require-macros [cljs.core.async.macros :refer [go go-loop alt!]]
                    [cljs.core.match.macros :refer [match]]))
 
+(def util (js/require "util"))
+
 
 ;; {
 ;;   "msg_id" : "fcca6b96-5bcc-4f9b-aecd-1001c10cb787",
@@ -71,6 +73,43 @@
            :text desc})
         (println "tell-more: no name"))))
 
+(defn news
+  [entities state]
+  (go (let [account (-> entities :account first :value)]
+        {:state {:account account}
+         :text "That sounds great!"})))
+
+(defn update-opportunity
+  [entities state]
+  (go (let [amount (-> entities :amount_of_money first :value)]
+        {:state (merge state {:amount amount})
+         :text "Done"})))
+
+(defn inform
+  [entities state]
+  (go (let [name (-> entities :name first :value)
+            account (-> state :account)
+            amount (-> state :amount)
+            text (.format util "to %s on Chatter: \"great news on %s. opportunity size upgraded to %s\" -- Ok" name account amount)]
+        {:state state
+         :text text})))
+
+(defn task
+  [entities state]
+  (go (let [action (-> entities :action first :value)
+            account (-> state :account)
+            amount (-> state :amount)
+            text (match [action]
+
+                        ["submit_pricing_approval"]
+                        "Done"
+
+                        ["send_quote"]
+                        (let [d (-> entities :datetime first :from)]
+                          "I've added a reminder for the quote"))]
+        {:state state
+         :text text})))
+
 (defn handle
   [x]
   (go (let [{intent :intent entities :entities text :text state :state} x
@@ -87,6 +126,18 @@
 
           ["tell_more"]
           (<! (tell-more entities state))
+
+          ["news"]
+          (<! (news entities state))
+
+          ["update_opportunity"]
+          (<! (update-opportunity entities state))
+
+          ["inform"]
+          (<! (inform entities state))
+
+          ["task"]
+          (<! (task entities state))
 
           :else
           {:state state
