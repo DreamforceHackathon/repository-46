@@ -6,31 +6,68 @@
   (:require-macros [cljs.core.async.macros :refer [go go-loop alt!]]
                    [cljs.core.match.macros :refer [match]]))
 
+
+;; {
+;;   "msg_id" : "fcca6b96-5bcc-4f9b-aecd-1001c10cb787",
+;;   "_text" : "driving to Uber",
+;;   "outcomes" : [ {
+;;     "_text" : "driving to Uber",
+;;     "intent" : "drive_to",
+;;     "entities" : {
+;;       "account" : [ {
+;;         "value" : "Uber"
+;;       } ]
+;;     },
+;;     "confidence" : 0.505
+;;   } ]
+;; }
+
+;; op-id 006o0000004ny83
+;; edna-id 003o000000BTNrm
+;; event-id 00Uo0000001bbsMEAQ
+;; event-relation-id 0REo0000000IbkiGAC
+
 (defn drive-to
   [entities state]
-  (let [op {}
-        op-id (:id op)
-        update (or (:update op) " Last price is $10M, updated last week by John")]
-    (debug "drive-to " entities state)
-    {:state {:op op-id}
-     :text (str "Good luck! Here is the latest update about this opportunity: " update)}))
+  (go (let [account (-> entities :account first :value)
+            op (<! (sf/name->opportunity account "Account"))
+            op-id (:Id op)
+            update (<! (sf/get-latest-update op-id))
+            update (or update " Last price is $10M, updated last week by John")]
+        (debug "drive-to " entities state)
+        {:state {:op op-id}
+         :text (str "Good luck! Here is the latest update about this opportunity: " update)})))
 
 (defn who-attend
   [entities state]
-  (let [op {}
-        op-id (:id op)
-        attendees (or (:attendees op) "Roberto Foo, CTO and Jessica Bar, CMO")]
-    (debug "drive-to " entities state)
-    {:state {:op op-id}
-     :text attendees}))
+  (go
+    (let [op-id (:op state)
+          attendees (<! (sf/opportunity->attendees op-id))
+          attendees-string (->> attendees
+                                (map (fn [{:keys [Name Title] :as x}]
+                                       (println x)
+                                       (str Name ", " Title)))
+                                (string/join " and "))]
+      (debug "who-attend " entities state)
+      {:state {:op op-id
+               :attendees attendees}
+       :text attendees})))
 
+;; TODO how can I ask about missing name entity?
 (defn tell-more
   [entities state]
-  (let [name (-> entities :name first :value)
-        user {:id "123" :name "Roberto Foo"}
-        lkdn-info {:bio "Roberto has been for 2y in SFDC..."}]
-    {:state (merge state {:user (:id user)})
-     :text (:bio lkdn-info)}))
+  (go (if-let [name (-> entities :name first :value)]
+        (let [cid (->> state :attendees
+                       (filter #(re-find (js/RegExp. name) (:Name %)))
+                       first
+                       :Id)
+              desc (-> (sf/more-details cid)
+                       <!
+                       trace
+                       :Description)]
+          {:state (merge state {:user cid})
+           :text desc}))))
+
 
 (defn handle
   [x]
@@ -46,13 +83,13 @@
          state :state} (match [intent]
 
                               ["drive_to"]
-                              (drive-to entities state)
+                              (<! (drive-to entities state))
 
                               ["who_attend"]
-                              (who-attend entities state)
+                              (<! (who-attend entities state))
 
                               ["tell_more"]
-                              (tell-more entities state)
+                              (<! (tell-more entities state))
 
                               :else
                               {:state state

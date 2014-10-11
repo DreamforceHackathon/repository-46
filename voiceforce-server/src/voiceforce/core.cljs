@@ -13,6 +13,12 @@
 
 ;; (defn )
 
+(defn process-msg [msg]
+  (-> msg
+      js/JSON.parse
+      (js->clj :keywordize-keys true)
+      state/req))
+
 (def WebSocketServer (.-Server (js/require "ws")))
 
 (defn connect!
@@ -25,16 +31,28 @@
                                (debug "closed ws")))
                         (.on ws "message"
                              (fn [msg]
-                               (try (let [x  (js->clj (js/JSON.parse msg) :keywordize-keys true)
-                                          res (state/handle x)]
-                                      (->> res
-                                           clj->js
-                                           js/JSON.stringify
-                                           (.send ws)))
+                               (try (->> (process-msg msg)
+                                         clj->js
+                                         js/JSON.stringify
+                                         (.send ws))
                                     (catch :default e
                                       (log "could not parse" msg)))))))
     (.on "error" (fn [err]
-                   (log "error" err)))))
+                   (log "error" err))))
+
+  (defn do! [req]
+    (let [dt req]
+      (go (-> (process-msg dt)
+              <!
+              println))))
+
+  ;; (do! "{\"wit\":{\"stats\": {\"total_time\":13},\"msg_id\": \"fcca6b96-5bcc-4f9b-aecd-1001c10cb787\",\"_text\": \"driving to Uber\",\"outcomes\": [{\"_text\": \"driving to Uber\",\"intent\": \"drive_to\",\"entities\": {\"account\": [{\"value\": \"Uber\"}]},\"confidence\":0.505}]}}")
+
+  ;; (do! "{\"wit\":{\"stats\": {\"total_time\":13},\"msg_id\": \"fcca6b96-5bcc-4f9b-aecd-1001c10cb787\",\"_text\": \"driving to Uber\",\"outcomes\": [{\"_text\": \"driving to Uber\",\"intent\": \"who_attend\",\"entities\": {\"account\": [{\"value\": \"Uber\"}]},\"confidence\":0.505}]}, \"state\":{\"opp\":\"006o0000004ny83\"}}")
+
+(do! "{\"wit\":{\"stats\": {\"total_time\":13},\"msg_id\": \"fcca6b96-5bcc-4f9b-aecd-1001c10cb787\",\"_text\": \"driving to Uber\",\"outcomes\": [{\"_text\": \"driving to Uber\",\"intent\": \"tell_more\",\"entities\": {\"name\": [{\"value\": \"Edna\"}]},\"confidence\":0.505}]}, \"state\":{\"attendees\":[{\"Name\":\"Edna Frank\",\"Id\":\"003o000000BTNrm\"}]}}")
+
+  )
 
 (defn ^:export main [& args]
   (let [port (js/parseInt (or js/process.env.PORT "1337"))]
