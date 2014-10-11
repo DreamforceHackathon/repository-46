@@ -33,13 +33,14 @@
                              (fn [msg]
 
                                (debug "Receiving: " msg)
-                               (try (->> (process-msg msg)
-
-                                         clj->js
-                                         js/JSON.stringify
-                                         (.send ws))
-                                    (catch :default e
-                                      (log "could not parse" msg e)))))))
+                               (go
+                                 (try (->> (process-msg msg)
+                                           <!
+                                           clj->js
+                                           js/JSON.stringify
+                                           (.send ws))
+                                      (catch :default e
+                                        (log "could not parse" msg e))))))))
     (.on "error" (fn [err]
                    (log "error" err))))
 

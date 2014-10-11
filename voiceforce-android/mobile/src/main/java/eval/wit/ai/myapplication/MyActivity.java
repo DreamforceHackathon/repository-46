@@ -18,32 +18,27 @@ import android.widget.TextView;
 import com.google.android.gms.common.api.GoogleApiClient;
 import com.google.android.gms.common.api.GoogleApiClient.ConnectionCallbacks;
 import com.google.android.gms.common.api.GoogleApiClient.OnConnectionFailedListener;
-import com.google.android.gms.wearable.DataApi;
-import com.google.android.gms.wearable.DataEvent;
-import com.google.android.gms.wearable.DataEventBuffer;
-import com.google.android.gms.wearable.Node;
-import com.google.android.gms.wearable.NodeApi;
 import com.google.android.gms.wearable.Wearable;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 
 import org.java_websocket.client.WebSocketClient;
 import org.java_websocket.handshake.ServerHandshake;
 
 import java.io.IOException;
-import java.math.BigInteger;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.security.SecureRandom;
 import java.util.HashMap;
 import java.util.Locale;
+import java.util.Map;
 
 import ai.wit.sdk.IWitListener;
 import ai.wit.sdk.Wit;
 
 
-public class MyActivity extends ActionBarActivity implements IWitListener, DataApi.DataListener, ConnectionCallbacks, OnConnectionFailedListener {
+public class MyActivity extends ActionBarActivity implements IWitListener, ConnectionCallbacks, OnConnectionFailedListener {
 
     public static String TAG = "handled";
     GoogleApiClient _gac;
@@ -51,6 +46,7 @@ public class MyActivity extends ActionBarActivity implements IWitListener, DataA
     TextToSpeech ttobj;
     Wit _wit;
     WitAudioPiper _witAudioPiper;
+    String state;
 
     Handler _handler = new Handler() {
         public void handleMessage(Message msg) {
@@ -64,7 +60,7 @@ public class MyActivity extends ActionBarActivity implements IWitListener, DataA
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_my);
 
-        String accessToken = "EWQK5YI4BXIEYGGU5XJOKLUMOEYXI5FD";
+        String accessToken = "JBZN5A6EB5D4Q6WBRBYAC35JXUQOQORJ";
 
         _wit = new Wit(accessToken, this);
 
@@ -76,16 +72,16 @@ public class MyActivity extends ActionBarActivity implements IWitListener, DataA
                 .build();
 
 
-        ttobj=new TextToSpeech(getApplicationContext(),
+        ttobj = new TextToSpeech(getApplicationContext(),
                 new TextToSpeech.OnInitListener() {
                     @Override
                     public void onInit(int status) {
-                        if(status != TextToSpeech.ERROR){
+                        if (status != TextToSpeech.ERROR) {
                             ttobj.setLanguage(Locale.US);
                         }
                     }
                 });
-        _witAudioPiper = new WitAudioPiper();
+        //_witAudioPiper = new WitAudioPiper();
     }
 
 
@@ -111,7 +107,7 @@ public class MyActivity extends ActionBarActivity implements IWitListener, DataA
     @Override
     protected void onStart() {
         super.onStart();
-        Wearable.DataApi.addListener(_gac, this);
+        //Wearable.DataApi.addListener(_gac, this);
         _gac.connect();
         connectWebSocket();
     }
@@ -121,7 +117,7 @@ public class MyActivity extends ActionBarActivity implements IWitListener, DataA
         TextView tv = (TextView) findViewById(R.id.status);
         tv.setText("Connected");
         Log.d(TAG, "onConnected");
-        Wearable.DataApi.addListener(_gac, this);
+        //Wearable.DataApi.addListener(_gac, this);
     }
 
     @Override
@@ -134,26 +130,26 @@ public class MyActivity extends ActionBarActivity implements IWitListener, DataA
         Log.d(TAG, "onConnectionFailed");
     }
 
-    @Override
-    public void onDataChanged(DataEventBuffer dataEvents) {
-
-        byte[] audioBytes;
-        for (DataEvent event : dataEvents) {
-            if (event.getType() == DataEvent.TYPE_DELETED) {
-                Log.d(TAG, "DataItem deleted: " + event.getDataItem().getUri());
-            } else if (event.getType() == DataEvent.TYPE_CHANGED) {
-//                Log.d(TAG, "DataItem changed: " + event.getDataItem().getUri());
-                audioBytes = event.getDataItem().getData();
-
-                    try {
-                        _witAudioPiper.gotSamples(audioBytes);
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                    }
-
-                }
-        }
-    }
+//    @Override
+//    public void onDataChanged(DataEventBuffer dataEvents) {
+//
+//        byte[] audioBytes;
+//        for (DataEvent event : dataEvents) {
+//            if (event.getType() == DataEvent.TYPE_DELETED) {
+//                Log.d(TAG, "DataItem deleted: " + event.getDataItem().getUri());
+//            } else if (event.getType() == DataEvent.TYPE_CHANGED) {
+////                Log.d(TAG, "DataItem changed: " + event.getDataItem().getUri());
+//                audioBytes = event.getDataItem().getData();
+//
+//                try {
+//                    _witAudioPiper.gotSamples(audioBytes);
+//                } catch (IOException e) {
+//                    e.printStackTrace();
+//                }
+//
+//            }
+//        }
+//    }
 
     // WIT INTEGRATION
 
@@ -165,15 +161,32 @@ public class MyActivity extends ActionBarActivity implements IWitListener, DataA
         }
     }
 
+    private JsonElement ensureJsonArray(JsonElement elt) {
+        if (!elt.isJsonArray()) {
+            JsonElement res = new JsonArray();
+            res.getAsJsonArray().add(elt);
+            return res;
+        }
+        else
+            return elt;
+    }
+
     @Override
     public void witDidGraspIntent(String intent, HashMap<String, JsonElement> entities, String body, double confidence, Error error) {
         ((TextView) findViewById(R.id.txtText)).setText(body);
         Gson gson = new GsonBuilder().setPrettyPrinting().create();
-        String jsonOutput = gson.toJson(entities);
+
+        HashMap<String, JsonElement> ents = new HashMap<String, JsonElement>();
+        for(Map.Entry<String, JsonElement> entry : entities.entrySet()) {
+            String key = entry.getKey();
+            JsonElement value = entry.getValue();
+            ents.put(key, ensureJsonArray(value));
+        }
+        String jsonOutput = gson.toJson(ents);
         ((TextView) findViewById(R.id.jsonView)).setText(Html.fromHtml("<span><b>Intent: " + intent +
                 "<b></span><br/>") + jsonOutput +
                 Html.fromHtml("<br/><span><b>Confidence: " + confidence + "<b></span>"));
-        //sendMessage(intent);
+        sendMessage(intent, ents);
     }
 
     @Override
@@ -210,7 +223,6 @@ public class MyActivity extends ActionBarActivity implements IWitListener, DataA
             @Override
             public void onOpen(ServerHandshake serverHandshake) {
                 Log.i("Websocket", "Opened");
-                sendMessage("drive_to");
             }
 
             @Override
@@ -226,9 +238,9 @@ public class MyActivity extends ActionBarActivity implements IWitListener, DataA
                             VoiceForceResponse response = gson.fromJson(message, VoiceForceResponse.class);
                             Log.d("VoiceForce", "Gson : Response " + gson.toJson(response));
                             String toSpeak = response.get_text();
+                            state = response.get_state();
                             ttobj.speak(toSpeak, TextToSpeech.QUEUE_FLUSH, null);
-                        }
-                        catch (Exception e) {
+                        } catch (Exception e) {
                             Log.e("VoiceForce", "VoiceForce : Error " + e.getMessage());
                         }
                     }
@@ -248,29 +260,12 @@ public class MyActivity extends ActionBarActivity implements IWitListener, DataA
         mWebSocketClient.connect();
     }
 
-    public void sendMessage(String wit_response) {
-        mWebSocketClient.send("{\n" +
-                "   \"state\":{\n" +
-                "   },\n" +
-                "   \"wit\":{\n" +
-                "      \"msg_id\":\"8e4c7268-2377-4920-9e13-b3135ccae8db\",\n" +
-                "      \"_text\":\"Here is a new sentence\",\n" +
-                "      \"outcomes\":[\n" +
-                "         {\n" +
-                "            \"_text\":\"Here is a new sentence\",\n" +
-                "            \"intent\":\""+ wit_response + "\",\n" +
-                "            \"entities\":{\n" +
-                "               \"on_off\":[\n" +
-                "                  {\n" +
-                "                     \"value\":\"off\"\n" +
-                "                  }\n" +
-                "               ]\n" +
-                "            },\n" +
-                "            \"confidence\":0.652\n" +
-                "         }\n" +
-                "      ]\n" +
-                "   }\n" +
-                "}");
+    public void sendMessage(String intent, HashMap<String, JsonElement> entities) {
+        Gson gson = new Gson();
+        VoiceForceRequest request = new VoiceForceRequest(state, intent, entities);
+        String r = gson.toJson(request);
+        Log.d("VoiceForce", "Sending " + r);
+        mWebSocketClient.send(r);
     }
 
 }
