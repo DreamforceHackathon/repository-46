@@ -135,7 +135,7 @@ SELECT RelationId FROM EventRelation WHERE EventId = '" eid "'
                <!
                :records
                trace
-               (->> (map #(select-keys % [:Name :Title]))))
+               (->> (map #(select-keys % [:Id :Name :Title]))))
          ]
         attendees)))
 
