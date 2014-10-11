@@ -15,6 +15,9 @@ import com.google.android.gms.common.api.PendingResult;
 import com.google.android.gms.common.api.ResultCallback;
 import com.google.android.gms.wearable.DataApi;
 import com.google.android.gms.wearable.DataEventBuffer;
+import com.google.android.gms.wearable.DataMap;
+import com.google.android.gms.wearable.Node;
+import com.google.android.gms.wearable.NodeApi;
 import com.google.android.gms.wearable.PutDataMapRequest;
 import com.google.android.gms.wearable.PutDataRequest;
 import com.google.android.gms.wearable.Wearable;
@@ -23,11 +26,14 @@ import com.google.android.gms.common.api.GoogleApiClient;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.math.BigInteger;
 
 import ai.wit.sdk.IWitCoordinator;
 import ai.wit.sdk.WitMic;
 
 public class MyActivity extends Activity implements GoogleApiClient.ConnectionCallbacks, GoogleApiClient.OnConnectionFailedListener, DataApi.DataListener , IWitCoordinator {
+
+    public static String TAG = "wear";
 
     private TextView mTextView;
     public GoogleApiClient _gac;
@@ -58,92 +64,99 @@ public class MyActivity extends Activity implements GoogleApiClient.ConnectionCa
                 .addOnConnectionFailedListener(this)
                 .build();
 
-        Log.d("Wear", "Lets go!");
+        Log.d(TAG, "Lets go!");
 
-        try {
-            _witMic = new WitMic(this, true);
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
     }
 
     @Override
     protected void onStart()
     {
         super.onStart();
-        Log.d("Wear", "onStart");
+        Log.d(TAG, "onStart");
         _gac.connect();
     }
 
     @Override
     public void onConnected(android.os.Bundle bundle) {
-        Log.d("Wear", "onConnected");
-        sendDataTest();
+        Log.d(TAG, "onConnected");
     }
 
     @Override
     public void onConnectionSuspended(int i) {
-        Log.d("Wear", "onSuspended");
+        Log.d(TAG, "onSuspended");
     }
 
     @Override
     public void onConnectionFailed(com.google.android.gms.common.ConnectionResult connectionResult) {
-        Log.d("Wear", "onConnectionFailed");
+        Log.d(TAG, "onConnectionFailed");
     }
 
-    public void sendDataTest()
+    public void sendBytesToHandled(byte[] bytes)
     {
-        byte bytes[] = new byte[2];
-        bytes[0] = (byte) 1;
-        bytes[0] = (byte) 6;
-        PutDataRequest pdr = PutDataRequest.create("/witaudioooo");
-        pdr.setData(bytes);
-        PendingResult<DataApi.DataItemResult> pendingResult = Wearable.DataApi.putDataItem(_gac, pdr);
-        pendingResult.setResultCallback(new ResultCallback<DataApi.DataItemResult>() {
-            @Override
-            public void onResult(final DataApi.DataItemResult result) {
 
-                if(result.getStatus().isSuccess()) {
-                    Log.d("Wear", "Data item set: " + result.getDataItem().getUri());
-                } else {
-                    Log.d("Wear", "Something went wrong setting data: " + result.getDataItem().getUri());
-                }
-            }
-        });
+        final PutDataMapRequest putRequest = PutDataMapRequest.create("/SAMPLE"+Math.random());
+        final DataMap map = putRequest.getDataMap();
+
+        map.putByteArray("witaudiodata", bytes);
+
+        Wearable.DataApi.putDataItem(_gac, putRequest.asPutDataRequest());
+
     }
 
 
     @Override
     public void onDataChanged(DataEventBuffer dataEvents) {
-        Log.d("wear", "OnDataChange!");
+        Log.d(TAG, "OnDataChange!");
     }
 
     @Override
     public void stopListening() {
-        Log.d("wear", "Stop recording now");
+        Log.d(TAG, "Stop recording now");
         _witMic.stopRecording();
+
         mTextView.setText("Stopped!");
 
     }
 
     public void buttonPressed(View v) {
-        if (_witMic.isRecording() == false) {
-            _witMic.startRecording();
-            InputStream inputStream = _witMic.getInputStream();
-            ForwardAudioSampleThread ft = new ForwardAudioSampleThread(inputStream);
-            ft.start();
-            mTextView.setText("Listening...");
+
+        if (_witMic == null || _witMic.isRecording() == false) {
+            try {
+                micStartListening();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
         } else {
-            _witMic.stopRecording();
-            mTextView.setText("Stopped!");
+            micStopListening();
         }
     }
 
+    public void micStartListening() throws IOException {
+        _witMic = new WitMic(this, true);
+        _witMic.startRecording();
+        InputStream inputStream = _witMic.getInputStream();
+        ForwardAudioSampleThread ft = new ForwardAudioSampleThread(inputStream, this);
+        ft.start();
+        mTextView.setText("Listening...");
+    }
+
+    public void micStopListening()
+    {
+        _witMic.stopRecording();
+        mTextView.setText("Stopped!");
+    }
+
+
+
     class ForwardAudioSampleThread extends Thread {
         InputStream _in;
+        MyActivity _my;
 
-        public ForwardAudioSampleThread(InputStream in) {
+        public ForwardAudioSampleThread(InputStream in, MyActivity my) {
+
             _in = in;
+            _my = my;
+
         }
 
         @Override
@@ -153,7 +166,19 @@ public class MyActivity extends Activity implements GoogleApiClient.ConnectionCa
 
             try {
                 while ((n = _in.read(buffer)) > 0) {
-                    Log.d("wear", "Got "+ n +" bytes from the microphone");
+                    sendBytesToHandled(buffer);
+//                    Log.d(TAG, "Got "+ n +" bytes from the microphone");
+//                    Wearable.DataApi.addListener(_gac, _my);
+//                    NodeApi.GetConnectedNodesResult nodes =
+//                            Wearable.NodeApi.getConnectedNodes(_gac).await();
+//                    for (Node node : nodes.getNodes()) {
+//                        Log.d(TAG, "Node connected: "+node.getDisplayName());
+//                        for (int i = 0; i < 10; i++) {
+//
+//                            Wearable.MessageApi.sendMessage(_gac, node.getId(), "soundssamples", buffer);
+//                            Log.d(TAG, "sending audio bytes!");
+//                        }
+//                    }
                 }
             } catch (IOException e) {
                 e.printStackTrace();

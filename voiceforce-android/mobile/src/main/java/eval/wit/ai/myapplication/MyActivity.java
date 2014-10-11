@@ -1,6 +1,8 @@
 package eval.wit.ai.myapplication;
 
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Message;
 import android.speech.tts.TextToSpeech;
 import android.support.v4.app.Fragment;
 import android.support.v7.app.ActionBarActivity;
@@ -43,17 +45,27 @@ import ai.wit.sdk.Wit;
 
 public class MyActivity extends ActionBarActivity implements IWitListener, DataApi.DataListener, ConnectionCallbacks, OnConnectionFailedListener {
 
+    public static String TAG = "handled";
     GoogleApiClient _gac;
     private WebSocketClient mWebSocketClient;
     TextToSpeech ttobj;
     Wit _wit;
+    WitAudioPiper _witAudioPiper;
+
+    Handler _handler = new Handler() {
+        public void handleMessage(Message msg) {
+
+            Log.d(TAG, "Got data from the LG Watch!!");
+        }
+    };
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_my);
 
-        String accessToken = "JBZN5A6EB5D4Q6WBRBYAC35JXUQOQORJ";
+        String accessToken = "EWQK5YI4BXIEYGGU5XJOKLUMOEYXI5FD";
+
         _wit = new Wit(accessToken, this);
 
         _gac = new GoogleApiClient
@@ -62,6 +74,7 @@ public class MyActivity extends ActionBarActivity implements IWitListener, DataA
                 .addConnectionCallbacks(this)
                 .addOnConnectionFailedListener(this)
                 .build();
+
 
         ttobj=new TextToSpeech(getApplicationContext(),
                 new TextToSpeech.OnInitListener() {
@@ -72,6 +85,7 @@ public class MyActivity extends ActionBarActivity implements IWitListener, DataA
                         }
                     }
                 });
+        _witAudioPiper = new WitAudioPiper();
     }
 
 
@@ -97,6 +111,7 @@ public class MyActivity extends ActionBarActivity implements IWitListener, DataA
     @Override
     protected void onStart() {
         super.onStart();
+        Wearable.DataApi.addListener(_gac, this);
         _gac.connect();
         connectWebSocket();
     }
@@ -105,30 +120,38 @@ public class MyActivity extends ActionBarActivity implements IWitListener, DataA
     public void onConnected(android.os.Bundle bundle) {
         TextView tv = (TextView) findViewById(R.id.status);
         tv.setText("Connected");
-        Log.d("handled", "onConnected");
-        GlanduThread gt = new GlanduThread(this, _gac);
-        gt.start();
+        Log.d(TAG, "onConnected");
+        Wearable.DataApi.addListener(_gac, this);
     }
 
     @Override
     public void onConnectionSuspended(int i) {
-        Log.d("handled", "onSuspended");
+        Log.d(TAG, "onSuspended");
     }
 
     @Override
     public void onConnectionFailed(com.google.android.gms.common.ConnectionResult connectionResult) {
-        Log.d("handled", "onConnectionFailed");
+        Log.d(TAG, "onConnectionFailed");
     }
 
     @Override
     public void onDataChanged(DataEventBuffer dataEvents) {
 
-        TextView tv = (TextView) findViewById(R.id.status);
-        tv.setText("Got Event!!!");
-
-        Log.d("handled", "got some data ");
+        byte[] audioBytes;
         for (DataEvent event : dataEvents) {
-            Log.d("handled", "event data: "+event);
+            if (event.getType() == DataEvent.TYPE_DELETED) {
+                Log.d(TAG, "DataItem deleted: " + event.getDataItem().getUri());
+            } else if (event.getType() == DataEvent.TYPE_CHANGED) {
+//                Log.d(TAG, "DataItem changed: " + event.getDataItem().getUri());
+                audioBytes = event.getDataItem().getData();
+
+                    try {
+                        _witAudioPiper.gotSamples(audioBytes);
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
+
+                }
         }
     }
 
@@ -150,7 +173,7 @@ public class MyActivity extends ActionBarActivity implements IWitListener, DataA
         ((TextView) findViewById(R.id.jsonView)).setText(Html.fromHtml("<span><b>Intent: " + intent +
                 "<b></span><br/>") + jsonOutput +
                 Html.fromHtml("<br/><span><b>Confidence: " + confidence + "<b></span>"));
-        sendMessage(intent, entities);
+        //sendMessage(intent);
     }
 
     @Override
@@ -187,6 +210,7 @@ public class MyActivity extends ActionBarActivity implements IWitListener, DataA
             @Override
             public void onOpen(ServerHandshake serverHandshake) {
                 Log.i("Websocket", "Opened");
+                sendMessage("drive_to");
             }
 
             @Override
@@ -224,40 +248,29 @@ public class MyActivity extends ActionBarActivity implements IWitListener, DataA
         mWebSocketClient.connect();
     }
 
-    public void sendMessage(String intent, HashMap<String, JsonElement> entities) {
-        Gson gson = new Gson();
-        VoiceForceRequest request = new VoiceForceRequest("{}", intent, entities);
-        String r = gson.toJson(request);
-        Log.d("VoiceForce", "Sending " + r);
-        mWebSocketClient.send(r);
+    public void sendMessage(String wit_response) {
+        mWebSocketClient.send("{\n" +
+                "   \"state\":{\n" +
+                "   },\n" +
+                "   \"wit\":{\n" +
+                "      \"msg_id\":\"8e4c7268-2377-4920-9e13-b3135ccae8db\",\n" +
+                "      \"_text\":\"Here is a new sentence\",\n" +
+                "      \"outcomes\":[\n" +
+                "         {\n" +
+                "            \"_text\":\"Here is a new sentence\",\n" +
+                "            \"intent\":\""+ wit_response + "\",\n" +
+                "            \"entities\":{\n" +
+                "               \"on_off\":[\n" +
+                "                  {\n" +
+                "                     \"value\":\"off\"\n" +
+                "                  }\n" +
+                "               ]\n" +
+                "            },\n" +
+                "            \"confidence\":0.652\n" +
+                "         }\n" +
+                "      ]\n" +
+                "   }\n" +
+                "}");
     }
 
-
-    class GlanduThread extends Thread {
-
-
-        MyActivity _my;
-        GoogleApiClient _gac;
-
-        public GlanduThread(MyActivity my, GoogleApiClient gac) {
-            _my = my;
-            _gac = gac;
-        }
-
-        @Override
-        public void run()
-        {
-            SecureRandom random = new SecureRandom();
-            Wearable.DataApi.addListener(_gac, _my);
-            NodeApi.GetConnectedNodesResult nodes =
-                    Wearable.NodeApi.getConnectedNodes(_gac).await();
-            for (Node node : nodes.getNodes()) {
-                Log.d("handled", "Node connected: "+node.getDisplayName());
-                for (int i = 0; i < 10; i++) {
-                    BigInteger bi = new BigInteger(130, random);
-                    Wearable.MessageApi.sendMessage(_gac, node.getId(),"abc", bi.toString().getBytes());
-                }
-            }
-        }
-    }
 }
