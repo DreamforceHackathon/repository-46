@@ -1,53 +1,42 @@
 package eval.wit.ai.myapplication;
 
 import android.app.Activity;
+import android.app.FragmentManager;
+import android.app.FragmentTransaction;
 import android.os.Bundle;
-import android.support.wearable.view.WatchViewStub;
+import android.support.wearable.view.CardFragment;
 import android.util.Log;
 import android.view.View;
-import android.widget.Button;
-import android.widget.TextView;
 
 import com.google.android.gms.common.api.GoogleApiClient;
 import com.google.android.gms.wearable.DataApi;
 import com.google.android.gms.wearable.DataEventBuffer;
 import com.google.android.gms.wearable.DataMap;
+import com.google.android.gms.wearable.MessageApi;
+import com.google.android.gms.wearable.MessageEvent;
 import com.google.android.gms.wearable.PutDataMapRequest;
 import com.google.android.gms.wearable.Wearable;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.UnsupportedEncodingException;
 
 import ai.wit.sdk.IWitCoordinator;
 import ai.wit.sdk.WitMic;
 
-public class MyActivity extends Activity implements GoogleApiClient.ConnectionCallbacks, GoogleApiClient.OnConnectionFailedListener, DataApi.DataListener , IWitCoordinator {
+public class MyActivity extends Activity implements GoogleApiClient.ConnectionCallbacks, GoogleApiClient.OnConnectionFailedListener, DataApi.DataListener, MessageApi.MessageListener, IWitCoordinator {
 
     public static String TAG = "wear";
 
-    private TextView mTextView;
     public GoogleApiClient _gac;
     WitMic _witMic;
-    Button _pushButton;
     ForwardAudioSampleThread _ft;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_my);
-        final WatchViewStub stub = (WatchViewStub) findViewById(R.id.watch_view_stub);
-        stub.setOnLayoutInflatedListener(new WatchViewStub.OnLayoutInflatedListener() {
-            @Override
-            public void onLayoutInflated(WatchViewStub stub) {
-                mTextView = (TextView) stub.findViewById(R.id.text);
-                _pushButton = (Button) stub.findViewById(R.id.push_button);
-                _pushButton.setOnClickListener(new View.OnClickListener(){
-                    public void onClick(View v) {
-                        buttonPressed(v);
-                    }
-                });
-            }
-        });
+
         _gac = new GoogleApiClient
                 .Builder(this)
                 .addApi(Wearable.API)
@@ -60,8 +49,7 @@ public class MyActivity extends Activity implements GoogleApiClient.ConnectionCa
     }
 
     @Override
-    protected void onStart()
-    {
+    protected void onStart() {
         super.onStart();
         Log.d(TAG, "onStart");
         _gac.connect();
@@ -69,6 +57,27 @@ public class MyActivity extends Activity implements GoogleApiClient.ConnectionCa
             _witMic = new WitMic(this, true);
         } catch (IOException e) {
             e.printStackTrace();
+        }
+    }
+
+
+    @Override
+    public void onMessageReceived(MessageEvent messageEvent) {
+        if (messageEvent.getPath().equals("text")) {
+            try {
+                String text = new String(messageEvent.getData(), "UTF-8");
+                Log.d("sdf", "Received" + text);
+                FragmentManager fragmentManager = getFragmentManager();
+                FragmentTransaction fragmentTransaction = fragmentManager.beginTransaction();
+                CardFragment cardFragment = CardFragment.create("SFDC",
+                        text,
+                        R.drawable.microphone);
+                fragmentTransaction.add(R.id.frame_layout, cardFragment);
+                fragmentTransaction.commit();
+            } catch (UnsupportedEncodingException e) {
+                e.printStackTrace();
+            }
+
         }
     }
 
@@ -87,8 +96,7 @@ public class MyActivity extends Activity implements GoogleApiClient.ConnectionCa
         Log.d(TAG, "onConnectionFailed");
     }
 
-    public void sendBytesToHandled(byte[] bytes, int n, int index)
-    {
+    public void sendBytesToHandled(byte[] bytes, int n, int index) {
         final PutDataMapRequest putRequest = PutDataMapRequest.create("/speech" + Math.random());
         final DataMap map = putRequest.getDataMap();
         map.putInt("n", n);
@@ -98,19 +106,17 @@ public class MyActivity extends Activity implements GoogleApiClient.ConnectionCa
         Wearable.DataApi.putDataItem(_gac, putRequest.asPutDataRequest());
     }
 
-    public void sendStart()
-    {
+    public void sendStart() {
         Log.d("VoiceForce", "Sending listening to the phone");
-        final PutDataMapRequest putRequest = PutDataMapRequest.create("/start"+ Math.random());
+        final PutDataMapRequest putRequest = PutDataMapRequest.create("/start" + Math.random());
         final DataMap map = putRequest.getDataMap();
         map.putDouble("c", Math.random());
         Wearable.DataApi.putDataItem(_gac, putRequest.asPutDataRequest());
     }
 
-    public void sendStop()
-    {
+    public void sendStop() {
         Log.d("VoiceForce", "Sending stop to the phone");
-        final PutDataMapRequest putRequest = PutDataMapRequest.create("/stop"+ Math.random());
+        final PutDataMapRequest putRequest = PutDataMapRequest.create("/stop" + Math.random());
         final DataMap map = putRequest.getDataMap();
         map.putDouble("c", Math.random());
         Wearable.DataApi.putDataItem(_gac, putRequest.asPutDataRequest());
@@ -125,7 +131,6 @@ public class MyActivity extends Activity implements GoogleApiClient.ConnectionCa
     public void stopListening() {
         Log.d(TAG, "Stop recording now");
         _witMic.stopRecording();
-        mTextView.setText("Stopped!");
     }
 
     public void buttonPressed(View v) {
@@ -155,11 +160,9 @@ public class MyActivity extends Activity implements GoogleApiClient.ConnectionCa
 
         _ft = new ForwardAudioSampleThread(inputStream, this);
         _ft.start();
-        mTextView.setText("Listening...");
     }
 
-    public void micStopListening()
-    {
+    public void micStopListening() {
         runOnUiThread(new Runnable() {
             @Override
             public void run() {
@@ -168,7 +171,6 @@ public class MyActivity extends Activity implements GoogleApiClient.ConnectionCa
         });
         _witMic.stopRecording();
         _ft.interrupt();
-        mTextView.setText("Stopped!");
     }
 
     class ForwardAudioSampleThread extends Thread {

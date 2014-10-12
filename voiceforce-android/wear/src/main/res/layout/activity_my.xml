@@ -1,14 +1,23 @@
-<?xml version="1.0" encoding="utf-8"?>
-<android.support.wearable.view.WatchViewStub
+<android.support.wearable.view.BoxInsetLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
-    xmlns:tools="http://schemas.android.com/tools"
-    android:id="@+id/watch_view_stub"
-    android:layout_width="match_parent"
+    android:background="@drawable/microphone"
     android:layout_height="match_parent"
-    app:rectLayout="@layout/rect_activity_my"
-    app:roundLayout="@layout/round_activity_my"
-    tools:context=".MyActivity"
-    tools:deviceIds="wear">
+    android:layout_width="match_parent">
 
-</android.support.wearable.view.WatchViewStub>
+    <FrameLayout
+        android:id="@+id/frame_layout"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        app:layout_box="bottom">
+
+        <Button
+            android:id="@+id/push_button"
+            android:layout_width="50dp"
+            android:layout_height="50dp"
+            android:onClick="buttonPressed"
+            android:text="Push"
+            />
+
+    </FrameLayout>
+</android.support.wearable.view.BoxInsetLayout>
