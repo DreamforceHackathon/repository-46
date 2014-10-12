@@ -186,7 +186,10 @@
 ;; Meeting
 
 (defn create-meeting [d contact-name account-name]
-  (go (let [acc-id (->> (search account-name)
+  (go (let [d (if (:from d)
+                (:from d)
+                d)
+            acc-id (->> (search account-name)
                         <!
                         (filter (comp (partial = "Account") :type :attributes trace))
                         first
