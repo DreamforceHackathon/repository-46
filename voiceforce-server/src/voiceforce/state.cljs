@@ -104,17 +104,22 @@
                        <!
                        trace
                        :Description)]
-          {:state (merge state {:contact cid}) :text (str "Sure. " desc)})
+          (if desc
+            {:state (merge state {:contact cid}) :text (str "Sure. " desc)}
+            {:state (merge state {:contact cid}) :text (str "I don't have any records on " name)}))
         {:state state :text "Excuse me, what contact are you interested in?"})))
 
 (defn news
   [entities state]
   (go (if-let [account (-> entities :account first :value)]
         (let [op (<! (sf/name->opportunity account "Account"))
-              op-id (:Id op)
-              op-name (:Name op)]
-          {:state (merge state {:account account :op-name op-name :op op-id})
-           :text (str "That sounds great! Shall I update the " op-name " opportunity?")})
+              op-id (or (:Id op) (s->op state))
+              op-name (or (:Name op) (s->op-name state))]
+          (if (and op-id op-name)
+            {:state (merge state {:account account :op-name op-name :op op-id})
+             :text (str "That sounds great! Shall I update the " op-name " opportunity?")}
+            {:state (merge state {:account account})
+             :text (str "That sounds great! I know " account " is a crucial account.")}))
         {:state state :text "I'm glad to hear it."})))
 
 (defn update-opportunity
@@ -197,38 +202,39 @@
 
 (defn handle
   [x]
-  (go (let [{intent :intent entities :entities text :text state :state} x
-         state (-> state js/JSON.parse (js->clj :keywordize-keys true))
-         _ (debug "Text received from devices " text " for intent : " intent " entities " entities)
-         {text :text
-          state :state} (match [intent]
+  (go (trace
+       (let [{intent :intent entities :entities text :text state :state} x
+             state (-> state js/JSON.parse (js->clj :keywordize-keys true))
+             _ (debug "Text received from devices " text " for intent : " intent " entities " entities)
+             {text :text
+              state :state} (match [intent]
 
-          ["drive_to"]
-          (<! (drive-to entities state))
+                              ["drive_to"]
+                              (<! (drive-to entities state))
 
-          ["who_attend"]
-          (<! (who-attend entities state))
+                              ["who_attend"]
+                              (<! (who-attend entities state))
 
-          ["tell_more"]
-          (<! (tell-more entities state))
+                              ["tell_more"]
+                              (<! (tell-more entities state))
 
-          ["news"]
-          (<! (news entities state))
+                              ["news"]
+                              (<! (news entities state))
 
-          ["update_opportunity"]
-          (<! (update-opportunity entities state))
+                              ["update_opportunity"]
+                              (<! (update-opportunity entities state))
 
-          ["inform"]
-          (<! (inform entities state))
+                              ["inform"]
+                              (<! (inform entities state))
 
-          ["task"]
-          (<! (task entities state))
+                              ["task"]
+                              (<! (task entities state))
 
-          ["create_meeting"]
-          (<! (create-meeting entities state))
+                              ["create_meeting"]
+                              (<! (create-meeting entities state))
 
-          :else
-          {:state state
-           :text "Sorry, I didn't get that"})]
-     {:state (-> state clj->js js/JSON.stringify)
-      :text text})))
+                              :else
+                              {:state state
+                               :text "Sorry, I didn't get that"})]
+         {:state (-> state clj->js js/JSON.stringify)
+          :text text}))))

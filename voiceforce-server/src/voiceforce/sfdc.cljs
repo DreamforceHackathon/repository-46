@@ -35,7 +35,8 @@
 
                  (and res (< (.-statusCode res) 300))
                  (let [body (js->clj body :keywordize-keys true)]
-                   (when body (put! out body)))
+                   (when body (put! out body))
+                   (close! out))
                  :else
                  (js/console.log
                   (str "ERROR sending req to salesforce (http " (.-statusCode res) ")")
