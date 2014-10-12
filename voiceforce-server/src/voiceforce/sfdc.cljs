@@ -118,7 +118,7 @@
         r)))
 
 (defn opportunity->last-event [x]
-  (go (let [r (-> (query (str "SELECT Id, WhatId FROM Event WHERE WhatId = '" x "'
+  (go (let [r (-> (query (str "SELECT Id, WhatId, WhoId FROM Event WHERE WhatId = '" x "'
                                ORDER BY LastModifiedDate DESC NULLS FIRST"))
                <!
                :records
@@ -129,15 +129,30 @@
 (defn opportunity->attendees [x]
   (go (let [r (<! (opportunity->last-event x))
             eid (:Id r)
-            attendees (-> (query (str "SELECT Id, Name, Title FROM Contact WHERE Contact.Id IN (
-SELECT RelationId FROM EventRelation WHERE EventId = '" eid "'
-)"))
-               <!
-               :records
-               trace
-               (->> (map #(select-keys % [:Id :Name :Title]))))
+            whoid (:WhoId r)
+            who (-> (query (str "SELECT Id, Name, Title
+                                 FROM Contact
+                                 WHERE Contact.Id = '" whoid "'"))
+                    <!
+                    :records
+                    first
+                    trace
+                    (select-keys [:Id :Name :Title]))
+            attendees (-> (query (str "SELECT Id, Name, Title
+                                       FROM Contact
+                                       WHERE Contact.Id IN (
+                                         SELECT RelationId
+                                         FROM EventRelation
+                                         WHERE EventId = '" eid "'
+                                       )"))
+                          <!
+                          :records
+                          trace
+                          (->> (map #(select-keys % [:Id :Name :Title]))))
          ]
-        attendees)))
+        (set (if who
+               (conj attendees who)
+               attendees)))))
 
 (defn update-opportunity-size [opp-id to]
   (go (let [x (req "PATCH" (str "/sobjects/Opportunity/" opp-id)

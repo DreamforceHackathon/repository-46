@@ -50,9 +50,27 @@
               <!
               println))))
 
-  ;; (do! "{\"wit\":{\"stats\": {\"total_time\":13},\"msg_id\": \"fcca6b96-5bcc-4f9b-aecd-1001c10cb787\",\"_text\": \"driving to Uber\",\"outcomes\": [{\"_text\": \"driving to Uber\",\"intent\": \"drive_to\",\"entities\": {\"account\": [{\"value\": \"Uber\"}]},\"confidence\":0.505}]}}")
+;; (do! (-> {:intent "drive_to"
+;;           :text "driving to Uber"
+;;           :entities {:account [{:value "Facebook"}]}
+;;           :state (js/JSON.stringify
+;;                   (clj->js {:op "006o0000004ny83"
+;;                             :account "Twitter"
+;;                             :attendees [{:Name "Edna Frank", :Id "003o000000BTNrm"}]}))}
+;;          clj->js
+;;          js/JSON.stringify
+;;          trace))
 
-  ;; (do! "{\"wit\":{\"stats\": {\"total_time\":13},\"msg_id\": \"fcca6b96-5bcc-4f9b-aecd-1001c10cb787\",\"_text\": \"driving to Uber\",\"outcomes\": [{\"_text\": \"driving to Uber\",\"intent\": \"who_attend\",\"entities\": {\"account\": [{\"value\": \"Uber\"}]},\"confidence\":0.505}]}, \"state\":{\"opp\":\"006o0000004ny83\"}}")
+(do! (-> {:intent "who_attend"
+          :text "driving to Uber"
+          :entities {:amount_of_money [{:value 200000}]}
+          :state (js/JSON.stringify
+                  (clj->js {:op "006o0000004nzO9AAI"
+                            :account "Twitter"
+                            :attendees [{:Name "Edna Frank", :Id "003o000000BTNrm"}]}))}
+         clj->js
+         js/JSON.stringify
+         trace))
 
 ;; (do! (-> {:intent "tell_more"
 ;;           :text "driving to Uber"
@@ -62,18 +80,6 @@
 ;;          clj->js
 ;;          js/JSON.stringify
 ;;          trace))
-
-(do! (-> {:intent "update_opportunity"
-          :text "driving to Uber"
-          :entities {:amount_of_money [{:value 200000}]}
-          :state (js/JSON.stringify
-                  (clj->js {:op "006o0000004ny83"
-                            :account "Twitter"
-                            :attendees [{:Name "Edna Frank", :Id "003o000000BTNrm"}]}))}
-         clj->js
-         js/JSON.stringify
-         trace))
-
 
 ;; (do! (-> {:intent "inform"
 ;;           :text "driving to Uber"

@@ -10,7 +10,6 @@
 
 (def util (js/require "util"))
 
-
 ;; {
 ;;   "msg_id" : "fcca6b96-5bcc-4f9b-aecd-1001c10cb787",
 ;;   "_text" : "driving to Uber",
@@ -38,10 +37,12 @@
             op (<! (sf/name->opportunity account "Account"))
             op-id (:Id op)
             update (<! (sf/get-latest-update op-id))
-            update (or update " Last price is $10M, updated last week by John")]
+            text (if update
+                   (str "Good luck! Here is the latest update about this opportunity: " update)
+                   (str "Good luck! Nothing new happened."))]
         (debug "drive-to " entities state)
         {:state {:op op-id}
-         :text (str "Good luck! Here is the latest update about this opportunity: " update)})))
+         :text text})))
 
 (defn who-attend
   [entities state]
@@ -88,16 +89,16 @@
 
 (defn news
   [entities state]
-  (go (let [account (-> entities :account first :value)]
-        {:state {:account account}
+  (go (let [account (-> entities :account first :value)
+            op (<! (sf/name->opportunity account "Account"))
+            op-id (:Id op)
+            op-name (:Name op)]
+        {:state {:account account :op op-id}
          :text "That sounds great!"})))
 
 (defn update-opportunity
   [entities state]
-  (go (let [account (or (:account state) (-> entities :account first :value))
-            op (-> (sf/name->opportunity account "Account")
-                   <!)
-            op-id (:Id op)
+  (go (let [op-id (:op state)
             op-name (:Name op)
             amount (-> entities :amount_of_money first :value)]
         (<! (sf/update-opportunity-size op-id amount))
