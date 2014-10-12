@@ -6,13 +6,12 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.media.AudioManager;
 import android.os.Bundle;
-import android.os.Handler;
-import android.os.Message;
 import android.speech.tts.TextToSpeech;
 import android.support.v4.app.Fragment;
 import android.support.v7.app.ActionBarActivity;
 import android.text.Html;
 import android.util.Log;
+import android.util.Pair;
 import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -26,6 +25,7 @@ import com.google.android.gms.common.api.GoogleApiClient.OnConnectionFailedListe
 import com.google.android.gms.wearable.DataApi;
 import com.google.android.gms.wearable.DataEvent;
 import com.google.android.gms.wearable.DataEventBuffer;
+import com.google.android.gms.wearable.DataMapItem;
 import com.google.android.gms.wearable.Wearable;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -37,8 +37,11 @@ import org.java_websocket.client.WebSocketClient;
 import org.java_websocket.handshake.ServerHandshake;
 
 import java.io.IOException;
+import java.io.PipedInputStream;
+import java.io.PipedOutputStream;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.nio.ByteOrder;
 import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
@@ -47,6 +50,7 @@ import java.util.TimerTask;
 
 import ai.wit.sdk.IWitListener;
 import ai.wit.sdk.Wit;
+import ai.wit.sdk.WitMic;
 
 
 public class MyActivity extends ActionBarActivity implements IWitListener, ConnectionCallbacks, OnConnectionFailedListener, DataApi.DataListener {
@@ -56,15 +60,14 @@ public class MyActivity extends ActionBarActivity implements IWitListener, Conne
     private WebSocketClient mWebSocketClient;
     private Timer _t;
     TextToSpeech ttobj;
+    boolean closed;
+
     Wit _wit;
     String state;
-
-    Handler _handler = new Handler() {
-        public void handleMessage(Message msg) {
-            Log.d(TAG, "Got data from the LG Watch!!");
-        }
-    };
-
+    private PipedInputStream _in;
+    private PipedOutputStream _out;
+    private int _currentIndex;
+    private HashMap<Integer, Pair<Integer, byte[]>> _cache;
 
     public void setupBluetooth() {
         AudioManager am = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
@@ -128,6 +131,7 @@ public class MyActivity extends ActionBarActivity implements IWitListener, Conne
                         }
                     }
                 });
+        closed = true;
 
         if (this.getIntent().getAction().equals("android.intent.action.VOICE_COMMAND")){
             setupBluetooth();
@@ -195,18 +199,63 @@ public class MyActivity extends ActionBarActivity implements IWitListener, Conne
         Log.d(TAG, "onConnectionFailed");
     }
 
+    private void sendAllPossible(){
+        while (_cache.containsKey(_currentIndex)){
+            Pair<Integer, byte[]> pair = _cache.get(_currentIndex);
+            if (!closed) {
+                try {
+                    Log.d("VoiceForce", "Sending index: " + _currentIndex);
+                    _out.write(pair.second, 0, pair.first);
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+            _cache.remove(_currentIndex++);
+        }
+    }
+
     @Override
     public void onDataChanged(DataEventBuffer dataEvents) {
-
-        byte[] audioBytes;
         for (DataEvent event : dataEvents) {
+            Log.e("VoiceForce", "event " + event.getDataItem().getUri().getPath());
             if (event.getType() == DataEvent.TYPE_DELETED) {
                 Log.d(TAG, "DataItem deleted: " + event.getDataItem().getUri());
-            } else if (event.getType() == DataEvent.TYPE_CHANGED) {
-//                Log.d(TAG, "DataItem changed: " + event.getDataItem().getUri());
-                audioBytes = event.getDataItem().getData();
+            } else if (event.getType() == DataEvent.TYPE_CHANGED &&
+                    event.getDataItem().getUri().getPath().startsWith("/speech")) {
+                final DataMapItem dataMapItem = DataMapItem.fromDataItem(event.getDataItem());
+                final int n = dataMapItem.getDataMap().getInt("n");
+                int index = dataMapItem.getDataMap().getInt("index");
+                final byte[] bytes = dataMapItem.getDataMap().getByteArray("data");
+                Log.d(TAG, "DataItem changed: " + n + " index" + index);
+                if (!closed) {
+                    _cache.put(index, new Pair<Integer, byte[]>(n, bytes));
+                    sendAllPossible();
+                }
+            } else if (event.getType() == DataEvent.TYPE_CHANGED &&
+                    event.getDataItem().getUri().getPath().startsWith("/start")) {
+                Log.d(TAG, "Starting streaming to Wit.ai");
+                closed = false;
+                _currentIndex = 1;
+                _cache = new HashMap<Integer, Pair<Integer, byte[]>>();
+                _in = new PipedInputStream();
+                _out = new PipedOutputStream();
+                try {
+                    _in.connect(_out);
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+                _wit.streamRawAudio(_in, "signed-integer", 16, WitMic.SAMPLE_RATE, ByteOrder.LITTLE_ENDIAN);
+            } else if (event.getType() == DataEvent.TYPE_CHANGED &&
+                    event.getDataItem().getUri().getPath().startsWith("/stop")) {
+                Log.d(TAG, "Stopping streaming to Wit.ai");
+                try {
+                    closed = true;
+                    sendAllPossible();
+                    _out.close();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
 
-                //_witAudioPiper.gotSamples(audioBytes);
             }
         }
     }
@@ -233,6 +282,10 @@ public class MyActivity extends ActionBarActivity implements IWitListener, Conne
 
     @Override
     public void witDidGraspIntent(String intent, HashMap<String, JsonElement> entities, String body, double confidence, Error error) {
+        if (error != null){
+            Log.e("VoiceForce", "An error occured while requesting Wit.ai " + error);
+            return;
+        }
         ((TextView) findViewById(R.id.txtText)).setText(body);
         Gson gson = new GsonBuilder().setPrettyPrinting().create();
 

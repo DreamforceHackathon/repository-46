@@ -29,6 +29,7 @@ public class MyActivity extends Activity implements GoogleApiClient.ConnectionCa
     public GoogleApiClient _gac;
     WitMic _witMic;
     Button _pushButton;
+    ForwardAudioSampleThread _ft;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -64,6 +65,11 @@ public class MyActivity extends Activity implements GoogleApiClient.ConnectionCa
         super.onStart();
         Log.d(TAG, "onStart");
         _gac.connect();
+        try {
+            _witMic = new WitMic(this, true);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 
     @Override
@@ -81,13 +87,32 @@ public class MyActivity extends Activity implements GoogleApiClient.ConnectionCa
         Log.d(TAG, "onConnectionFailed");
     }
 
-    public void sendBytesToHandled(byte[] bytes)
+    public void sendBytesToHandled(byte[] bytes, int n, int index)
     {
-        final PutDataMapRequest putRequest = PutDataMapRequest.create("/SAMPLE"+Math.random());
+        final PutDataMapRequest putRequest = PutDataMapRequest.create("/speech" + Math.random());
         final DataMap map = putRequest.getDataMap();
+        map.putInt("n", n);
+        map.putInt("index", index);
+        map.putByteArray("data", bytes);
 
-        map.putByteArray("witaudiodata", bytes);
+        Wearable.DataApi.putDataItem(_gac, putRequest.asPutDataRequest());
+    }
 
+    public void sendStart()
+    {
+        Log.d("VoiceForce", "Sending listening to the phone");
+        final PutDataMapRequest putRequest = PutDataMapRequest.create("/start"+ Math.random());
+        final DataMap map = putRequest.getDataMap();
+        map.putDouble("c", Math.random());
+        Wearable.DataApi.putDataItem(_gac, putRequest.asPutDataRequest());
+    }
+
+    public void sendStop()
+    {
+        Log.d("VoiceForce", "Sending stop to the phone");
+        final PutDataMapRequest putRequest = PutDataMapRequest.create("/stop"+ Math.random());
+        final DataMap map = putRequest.getDataMap();
+        map.putDouble("c", Math.random());
         Wearable.DataApi.putDataItem(_gac, putRequest.asPutDataRequest());
     }
 
@@ -100,80 +125,74 @@ public class MyActivity extends Activity implements GoogleApiClient.ConnectionCa
     public void stopListening() {
         Log.d(TAG, "Stop recording now");
         _witMic.stopRecording();
-
         mTextView.setText("Stopped!");
-
     }
 
     public void buttonPressed(View v) {
-
-        if (_witMic == null || _witMic.isRecording() == false) {
-            try {
-                micStartListening();
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
+        Log.d("VoiceForce", "Button pressed " + (_witMic == null || !_witMic.isRecording()));
+        if (_witMic == null || !_witMic.isRecording()) {
+            micStartListening();
         } else {
             micStopListening();
         }
     }
 
-    public void micStartListening() throws IOException {
-        _witMic = new WitMic(this, true);
+    public void micStartListening() {
+        Log.d("VoiceForce", "Starting listening");
+        try {
+            _witMic = new WitMic(this, true);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
         _witMic.startRecording();
+        runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                sendStart();
+            }
+        });
         InputStream inputStream = _witMic.getInputStream();
 
-        ForwardAudioSampleThread ft = new ForwardAudioSampleThread(inputStream, this);
-        ft.start();
+        _ft = new ForwardAudioSampleThread(inputStream, this);
+        _ft.start();
         mTextView.setText("Listening...");
     }
 
     public void micStopListening()
     {
+        runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                sendStop();
+            }
+        });
         _witMic.stopRecording();
+        _ft.interrupt();
         mTextView.setText("Stopped!");
     }
-
-
 
     class ForwardAudioSampleThread extends Thread {
         InputStream _in;
         MyActivity _my;
 
         public ForwardAudioSampleThread(InputStream in, MyActivity my) {
-
             _in = in;
             _my = my;
-
         }
 
         @Override
         public void run() {
             int n;
+            int count = 0;
             byte[] buffer = new byte[1024];
-
             try {
-                while ((n = _in.read(buffer)) > 0) {
-                    sendBytesToHandled(buffer);
-//                    Log.d(TAG, "Got "+ n +" bytes from the microphone");
-//                    Wearable.DataApi.addListener(_gac, _my);
-//                    NodeApi.GetConnectedNodesResult nodes =
-//                            Wearable.NodeApi.getConnectedNodes(_gac).await();
-//                    for (Node node : nodes.getNodes()) {
-//                        Log.d(TAG, "Node connected: "+node.getDisplayName());
-//                        for (int i = 0; i < 10; i++) {
-//
-//                            Wearable.MessageApi.sendMessage(_gac, node.getId(), "soundssamples", buffer);
-//                            Log.d(TAG, "sending audio bytes!");
-//                        }
-//                    }
+                while (-1 != (n = _in.read(buffer))) {
+                    Log.d("VoiceForce", "" + ++count);
+                    sendBytesToHandled(buffer, n, count);
                 }
             } catch (IOException e) {
                 e.printStackTrace();
             }
         }
-
     }
-
-
 }

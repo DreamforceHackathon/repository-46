@@ -10,7 +10,6 @@ import java.io.PipedOutputStream;
 import java.nio.ByteOrder;
 import java.util.HashMap;
 
-import ai.wit.sdk.IWitCoordinator;
 import ai.wit.sdk.IWitListener;
 import ai.wit.sdk.Wit;
 import ai.wit.sdk.WitMic;
@@ -45,7 +44,7 @@ public class WitAudioPiper implements IWitListener {
     }
 
     public void gotSamples(byte[] buffer) throws IOException {
-        _out.write(buffer);
+
         _counter++;
         if (_counter > 100) {
             _out.close();
