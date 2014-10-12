@@ -151,9 +151,9 @@
                           trace
                           (->> (map #(select-keys % [:Id :Name :Title]))))
          ]
-        (set (if who
-               (conj attendees who)
-               attendees)))))
+        (not-empty
+         (set (->> (if who (conj attendees who) attendees)
+                   (filter not-empty)))))))
 
 (defn update-opportunity-size [opp-id to]
   (go (let [x (req "PATCH" (str "/sobjects/Opportunity/" opp-id)

@@ -52,8 +52,10 @@
               op-id (:Id op)]
           (if-let [update (<! (sf/get-latest-update op-id))]
             (let [text (str "Good luck! Here is the latest update about this opportunity: " update)]
-              {:state (merge state {:op op-id}) :text text})
-            {:state (merge state {:op op-id}) :text  "Good luck! Nothing new happened."}))
+              {:state (merge state {:op op-id :account account})
+               :text text})
+            {:state (merge state {:op op-id :account account})
+             :text  "Good luck! Nothing new happened."}))
         {:state state :text "That sounds good."})))
 
 (defn who-attend
@@ -85,19 +87,25 @@
                 peeps (if (= 1 cnt) "person is" "people are")]
             {:state (merge state {:op op-id :attendees attendees})
              :text (str cnt " " peeps " attending: " attendees-string)})
-          {:state state :text "I don't you what meeting you're interested in."}))))
+          {:state state :text "I don't know what meeting you're interested in."}))))
 
 (defn tell-more
   [entities state]
-  (go (if-let [name (-> entities :name first :value)]
-        (let [cid (or (->> state
+  (go (if-let [attendees (:attendees state)]
+        (let [cid (or (and name
+                           (->> state
+                                :attendees
+                                (filter #(re-find (js/RegExp. name) (:Name %)))
+                                first
+                                :Id))
+                      (and name
+                           (->> (sf/search name)
+                                <!
+                                (filter (comp (partial = "Contact") :type :attributes))
+                                first
+                                :Id))
+                      (->> state
                            :attendees
-                           (filter #(re-find (js/RegExp. name) (:Name %)))
-                           first
-                           :Id)
-                      (->> (sf/search name)
-                           <!
-                           (filter (comp (partial = "Contact") :type :attributes))
                            first
                            :Id))
               desc (-> (sf/more-details cid)
@@ -106,7 +114,8 @@
                        :Description)]
           (if desc
             {:state (merge state {:contact cid}) :text (str "Sure. " desc)}
-            {:state (merge state {:contact cid}) :text (str "I don't have any records on " name)}))
+            {:state (merge state {:contact cid})
+             :text (str "I don't have any records on " (or name "this person."))}))
         {:state state :text "Excuse me, what contact are you interested in?"})))
 
 (defn news
@@ -146,7 +155,7 @@
             (let [{op-name :Name op-id :Id} op]
               (<! (sf/update-opportunity-size op-id amount))
               {:state (merge state {:op op-id :op-name op-name :amount amount})
-               :text "Ok. I updated the " op-name " opportunity"})
+               :text (str "Ok. I updated the " op-name " opportunity to " amount)})
             {:state state :text "Excuse me, what opportunity are you referring to?"}))
         {:state state :text "Excuse me, how do you want to update the opportunity?"})))
 
@@ -157,7 +166,7 @@
               amount (-> state :amount)
               op-name (s->op-name state)
               msg (.format util "Update on %s: opportunity %s proposition changed to %s dollars."
-                           account op-name amount)
+                           (or account op-name) op-name amount)
               text (.format util "OK. I let %s know." name)]
           (<! (sf/chatter-send name msg))
           {:state state :text text})
