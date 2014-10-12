@@ -1,5 +1,10 @@
 package eval.wit.ai.myapplication;
 
+import android.content.BroadcastReceiver;
+import android.content.Context;
+import android.content.Intent;
+import android.content.IntentFilter;
+import android.media.AudioManager;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
@@ -60,6 +65,35 @@ public class MyActivity extends ActionBarActivity implements IWitListener, Conne
             Log.d(TAG, "Got data from the LG Watch!!");
         }
     };
+
+
+    public void setupBluetooth() {
+        AudioManager am = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
+
+        registerReceiver(new BroadcastReceiver() {
+            @Override
+            public void onReceive(Context context, Intent intent) {
+                int state = intent.getIntExtra(AudioManager.EXTRA_SCO_AUDIO_STATE, -1);
+
+                if (AudioManager.SCO_AUDIO_STATE_CONNECTED == state) {
+                /*
+                 * Now the connection has been established to the bluetooth device.
+                 * Record audio or whatever (on another thread).With AudioRecord you can record with an object created like this:
+                 * new AudioRecord(MediaRecorder.AudioSource.MIC, 8000, AudioFormat.CHANNEL_CONFIGURATION_MONO,
+                 * AudioFormat.ENCODING_PCM_16BIT, audioBufferSize);
+                 *
+                 * After finishing, don't forget to unregister this receiver and
+                 * to stop the bluetooth connection with am.stopBluetoothSco();
+
+                    unregisterReceiver(this);
+                */
+                }
+
+            }
+        }, new IntentFilter(AudioManager.ACTION_SCO_AUDIO_STATE_UPDATED));
+
+        am.startBluetoothSco();
+    }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -124,6 +158,11 @@ public class MyActivity extends ActionBarActivity implements IWitListener, Conne
             }
         };
         _t.scheduleAtFixedRate(task, 0, 1000);
+
+        if (this.getIntent().getAction().equals("android.intent.action.VOICE_COMMAND")){
+            setupBluetooth();
+            toggle(null);
+        }
     }
 
     @Override
