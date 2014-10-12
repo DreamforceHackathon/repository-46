@@ -61,7 +61,6 @@ public class MyActivity extends ActionBarActivity implements IWitListener, Conne
 
     Handler _handler = new Handler() {
         public void handleMessage(Message msg) {
-
             Log.d(TAG, "Got data from the LG Watch!!");
         }
     };
@@ -96,6 +95,14 @@ public class MyActivity extends ActionBarActivity implements IWitListener, Conne
     }
 
     @Override
+    protected void onNewIntent(Intent intent) {
+        if (intent.getAction().equals("android.intent.action.VOICE_COMMAND")){
+            setupBluetooth();
+            toggle(null);
+        }
+    }
+
+    @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_my);
@@ -121,6 +128,11 @@ public class MyActivity extends ActionBarActivity implements IWitListener, Conne
                         }
                     }
                 });
+
+        if (this.getIntent().getAction().equals("android.intent.action.VOICE_COMMAND")){
+            setupBluetooth();
+            toggle(null);
+        }
     }
 
 

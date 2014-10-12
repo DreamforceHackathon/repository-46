@@ -20,14 +20,14 @@
         <activity
             android:name=".MyActivity"
             android:label="@string/app_name"
-            android:priority="1000">
+            android:priority="1000"
+            android:launchMode="singleTop">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
-
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
             <intent-filter android:priority="1000">
-                <action android:name="android.intent.action.VOICE_COMMAND" android:priority="1000"/>
+                <action android:name="android.intent.action.VOICE_COMMAND" android:priority="1000" />
                 <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
         </activity>
