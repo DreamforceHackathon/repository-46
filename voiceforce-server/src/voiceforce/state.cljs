@@ -68,28 +68,30 @@
                         (-> (sf/name->opportunity account "Account")
                             <! :Id)
 
-                        state-op
-                        state-op
-
                         state-account
                         (-> (sf/name->opportunity state-account "Account")
                             <! :Id)
 
                         :else
                         nil)]
-          (let [attendees (<! (sf/opportunity->attendees op-id))
-                attendees-string (->> attendees
-                                      (map (fn [{:keys [Name Title] :as x}]
-                                             (println x)
-                                             (str Name ", " Title)))
-                                      (string/join " and "))
-                cnt (count attendees)
-                peeps (if (= 1 cnt) "person is" "people are")]
-            {:state (merge state {:op op-id :attendees attendees})
-             :text (str cnt " " peeps " attending: " attendees-string)})
+          (let [attendees (<! (sf/opportunity->attendees op-id))]
+            (cond (= :no-meeting attendees)
+                  {:state {:op op-id}
+                   :text (str "There is no meeting scheduled with "
+                              (or account state-account))}
+                  :else
+                  (let [attendees-string (->> attendees
+                                              (map (fn [{:keys [Name Title] :as x}]
+                                                     (println x)
+                                                     (str Name ", " Title)))
+                                              (string/join " and "))
+                        cnt (count attendees)
+                        peeps (if (= 1 cnt) "person is" "people are")]
+                    {:state (merge state {:op op-id :attendees attendees})
+                     :text (str cnt " " peeps " attending: " attendees-string)})))
           {:state state :text (if account
                                 "I don't know what meeting you're interested in."
-                                "I don't know what the " account " meeting is.")}))))
+                                (str "I don't know what the " account " meeting is."))}))))
 
 (defn tell-more
   [entities state]
@@ -97,6 +99,7 @@
         (let [cid (or (and name
                            (->> state
                                 :attendees
+                                (filter not-empty)
                                 (filter #(re-find (js/RegExp. name) (:Name %)))
                                 first
                                 :Id))

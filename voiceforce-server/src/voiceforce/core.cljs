@@ -66,8 +66,8 @@
           :entities {}
           :state (js/JSON.stringify
                   (clj->js {:op "006o0000004ny83AAA"
-                            :account "Twitter"
-                            :attendees null}))}
+                            :account "Facebook"
+                            :attendees nil}))}
          clj->js
          js/JSON.stringify
          trace))

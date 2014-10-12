@@ -128,32 +128,32 @@
         r)))
 
 (defn opportunity->attendees [x]
-  (go (let [r (<! (opportunity->last-event x))
-            eid (:Id r)
-            whoid (:WhoId r)
-            who (-> (query (str "SELECT Id, Name, Title
-                                 FROM Contact
-                                 WHERE Contact.Id = '" whoid "'"))
-                    <!
-                    :records
-                    first
-                    trace
-                    (select-keys [:Id :Name :Title]))
-            attendees (-> (query (str "SELECT Id, Name, Title
+  (go (if-let [r (<! (opportunity->last-event x))]
+        (let [eid (:Id r)
+              whoid (:WhoId r)
+              who (-> (query (str "SELECT Id, Name, Title
+                                   FROM Contact
+                                   WHERE Contact.Id = '" whoid "'"))
+                      <!
+                      :records
+                      first
+                      (select-keys [:Id :Name :Title]))
+              attendees (-> (query (str "SELECT Id, Name, Title
                                        FROM Contact
                                        WHERE Contact.Id IN (
                                          SELECT RelationId
                                          FROM EventRelation
                                          WHERE EventId = '" eid "'
                                        )"))
-                          <!
-                          :records
-                          trace
-                          (->> (map #(select-keys % [:Id :Name :Title]))))
-         ]
-        (not-empty
-         (set (->> (if who (conj attendees who) attendees)
-                   (filter not-empty)))))))
+                            <!
+                            :records
+                            (->> (map #(select-keys % [:Id :Name :Title]))))]
+          (->> (if who (conj attendees who) attendees)
+               trace
+               (filter not-empty)
+               set
+               not-empty))
+        :no-meeting)))
 
 (defn update-opportunity-size [opp-id to]
   (go (let [x (req "PATCH" (str "/sobjects/Opportunity/" opp-id)
