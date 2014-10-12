@@ -1,5 +1,10 @@
 package eval.wit.ai.myapplication;
 
+import android.content.BroadcastReceiver;
+import android.content.Context;
+import android.content.Intent;
+import android.content.IntentFilter;
+import android.media.AudioManager;
 import android.os.Bundle;
 import android.speech.tts.TextToSpeech;
 import android.support.v4.app.Fragment;
@@ -37,11 +42,11 @@ import org.java_websocket.handshake.ServerHandshake;
 import java.io.IOException;
 import java.io.PipedInputStream;
 import java.io.PipedOutputStream;
+import java.io.UnsupportedEncodingException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.ByteOrder;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Timer;
@@ -68,41 +73,41 @@ public class MyActivity extends ActionBarActivity implements IWitListener, Conne
     private int _currentIndex;
     private HashMap<Integer, Pair<Integer, byte[]>> _cache;
 
-//    public void setupBluetooth() {
-//        AudioManager am = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
-//
-//        registerReceiver(new BroadcastReceiver() {
-//            @Override
-//            public void onReceive(Context context, Intent intent) {
-//                int state = intent.getIntExtra(AudioManager.EXTRA_SCO_AUDIO_STATE, -1);
-//
-//                if (AudioManager.SCO_AUDIO_STATE_CONNECTED == state) {
-//                /*
-//                 * Now the connection has been established to the bluetooth device.
-//                 * Record audio or whatever (on another thread).With AudioRecord you can record with an object created like this:
-//                 * new AudioRecord(MediaRecorder.AudioSource.MIC, 8000, AudioFormat.CHANNEL_CONFIGURATION_MONO,
-//                 * AudioFormat.ENCODING_PCM_16BIT, audioBufferSize);
-//                 *
-//                 * After finishing, don't forget to unregister this receiver and
-//                 * to stop the bluetooth connection with am.stopBluetoothSco();
-//
-//                    unregisterReceiver(this);
-//                */
-//                }
-//
-//            }
-//        }, new IntentFilter(AudioManager.ACTION_SCO_AUDIO_STATE_UPDATED));
-//
-//        am.startBluetoothSco();
-//    }
+    public void setupBluetooth() {
+        AudioManager am = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
 
-//    @Override
-//    protected void onNewIntent(Intent intent) {
-//        if (intent.getAction().equals("android.intent.action.VOICE_COMMAND")){
-//            //setupBluetooth();
-//            toggle(null);
-//        }
-//    }
+        registerReceiver(new BroadcastReceiver() {
+            @Override
+            public void onReceive(Context context, Intent intent) {
+                int state = intent.getIntExtra(AudioManager.EXTRA_SCO_AUDIO_STATE, -1);
+
+                if (AudioManager.SCO_AUDIO_STATE_CONNECTED == state) {
+                /*
+                 * Now the connection has been established to the bluetooth device.
+                 * Record audio or whatever (on another thread).With AudioRecord you can record with an object created like this:
+                 * new AudioRecord(MediaRecorder.AudioSource.MIC, 8000, AudioFormat.CHANNEL_CONFIGURATION_MONO,
+                 * AudioFormat.ENCODING_PCM_16BIT, audioBufferSize);
+                 *
+                 * After finishing, don't forget to unregister this receiver and
+                 * to stop the bluetooth connection with am.stopBluetoothSco();
+
+                    unregisterReceiver(this);
+                */
+                }
+
+            }
+        }, new IntentFilter(AudioManager.ACTION_SCO_AUDIO_STATE_UPDATED));
+
+        am.startBluetoothSco();
+    }
+
+    @Override
+    protected void onNewIntent(Intent intent) {
+        if (intent.getAction().equals("android.intent.action.VOICE_COMMAND")){
+            setupBluetooth();
+            toggle(null);
+        }
+    }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -132,10 +137,10 @@ public class MyActivity extends ActionBarActivity implements IWitListener, Conne
                 });
         closed = true;
 
-//        if (this.getIntent().getAction().equals("android.intent.action.VOICE_COMMAND")){
-//            setupBluetooth();
-//            toggle(null);
-//        }
+        if (this.getIntent().getAction().equals("android.intent.action.VOICE_COMMAND")){
+            setupBluetooth();
+            toggle(null);
+        }
     }
 
 
@@ -174,10 +179,10 @@ public class MyActivity extends ActionBarActivity implements IWitListener, Conne
         };
         _t.scheduleAtFixedRate(task, 0, 1000);
 
-//        if (this.getIntent().getAction().equals("android.intent.action.VOICE_COMMAND")){
-//            setupBluetooth();
-//            toggle(null);
-//        }
+        if (this.getIntent().getAction().equals("android.intent.action.VOICE_COMMAND")){
+            setupBluetooth();
+            toggle(null);
+        }
     }
 
     @Override
@@ -326,7 +331,7 @@ public class MyActivity extends ActionBarActivity implements IWitListener, Conne
     private void connectWebSocket() {
         URI uri;
         try {
-            uri = new URI("ws://25a029cd.ngrok.com");
+            uri = new URI("ws://1f3d8968.ngrok.com");
         } catch (URISyntaxException e) {
             e.printStackTrace();
             return;
@@ -340,28 +345,20 @@ public class MyActivity extends ActionBarActivity implements IWitListener, Conne
 
             @Override
             public void onMessage(String s) {
-                final String message = s;
+                Gson gson = new Gson();
+                Log.d("VoiceForce", "Message received " + s);
+                final VoiceForceResponse response = gson.fromJson(s, VoiceForceResponse.class);
+                Log.d("VoiceForce", "Gson : Response " + gson.toJson(response));
+                final String toSpeak = response.get_text();
+                sendTextToWatch(toSpeak);
                 runOnUiThread(new Runnable() {
                     @Override
                     public void run() {
                         // TTS
                         try {
-                            Gson gson = new Gson();
-                            Log.d("VoiceForce", "Message received " + message);
-                            VoiceForceResponse response = gson.fromJson(message, VoiceForceResponse.class);
-                            Log.d("VoiceForce", "Gson : Response " + gson.toJson(response));
-                            String toSpeak = response.get_text();
                             state = response.get_state();
                             ttobj.speak(toSpeak, TextToSpeech.QUEUE_FLUSH, null);
-                            HashSet <String>results= new HashSet<String>();
-                            NodeApi.GetConnectedNodesResult nodes =
-                                    Wearable.NodeApi.getConnectedNodes(_gac).await();
-                            for (Node node : nodes.getNodes()) {
-                                MessageApi.SendMessageResult result = Wearable.MessageApi.sendMessage(_gac, node.getId(), "text", toSpeak.getBytes("UTF-8")).await();
-                                if (!result.getStatus().isSuccess()) {
-                                    Log.e(TAG, "ERROR: failed to send Message: " + result.getStatus());
-                                }
-                            }
+
                         } catch (Exception e) {
                             Log.e("VoiceForce", "VoiceForce : Error " + e.getMessage());
                         }
@@ -380,6 +377,31 @@ public class MyActivity extends ActionBarActivity implements IWitListener, Conne
             }
         };
         mWebSocketClient.connect();
+    }
+
+    public void sendTextToWatch(final String toSpeak){
+        final Runnable r = new Runnable()
+        {
+            public void run()
+            {
+                NodeApi.GetConnectedNodesResult nodes =
+                        Wearable.NodeApi.getConnectedNodes(_gac).await();
+                for (Node node : nodes.getNodes()) {
+                    Log.e(TAG, "Sending tospeak to watch : " + node.getId());
+                    MessageApi.SendMessageResult result = null;
+                    try {
+                        result = Wearable.MessageApi.sendMessage(_gac, node.getId(), "text", toSpeak.getBytes("UTF-8")).await();
+                    } catch (UnsupportedEncodingException e) {
+                        e.printStackTrace();
+                    }
+                    if (result == null || !result.getStatus().isSuccess()) {
+                        Log.e(TAG, "ERROR: failed to send Message: " + result.getStatus());
+                    }
+                    Log.e(TAG, "Sent to device: " + result.getStatus());
+                }
+            }
+        };
+        r.run();
     }
 
     public void sendMessage(String intent, HashMap<String, JsonElement> entities) {

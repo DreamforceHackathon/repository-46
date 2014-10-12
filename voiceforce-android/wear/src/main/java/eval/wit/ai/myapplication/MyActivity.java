@@ -1,12 +1,14 @@
 package eval.wit.ai.myapplication;
 
 import android.app.Activity;
-import android.app.FragmentManager;
-import android.app.FragmentTransaction;
+import android.graphics.Color;
 import android.os.Bundle;
-import android.support.wearable.view.CardFragment;
+import android.support.wearable.view.CardScrollView;
+import android.support.wearable.view.CircledImageView;
 import android.util.Log;
+import android.view.Gravity;
 import android.view.View;
+import android.widget.TextView;
 
 import com.google.android.gms.common.api.GoogleApiClient;
 import com.google.android.gms.wearable.DataApi;
@@ -31,11 +33,13 @@ public class MyActivity extends Activity implements GoogleApiClient.ConnectionCa
     public GoogleApiClient _gac;
     WitMic _witMic;
     ForwardAudioSampleThread _ft;
+    CircledImageView image;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_my);
+        image = (CircledImageView) findViewById(R.id.push_button);
 
         _gac = new GoogleApiClient
                 .Builder(this)
@@ -44,9 +48,18 @@ public class MyActivity extends Activity implements GoogleApiClient.ConnectionCa
                 .addOnConnectionFailedListener(this)
                 .build();
 
-        Log.d(TAG, "Lets go!");
+        Wearable.MessageApi.addListener(_gac, this);
 
+        CardScrollView cardScrollView =
+                (CardScrollView) findViewById(R.id.card_scroll_view);
+        cardScrollView.setCardGravity(Gravity.BOTTOM);
+        cardScrollView.setVerticalScrollBarEnabled(true);
+        cardScrollView.setVisibility(View.INVISIBLE);
+
+        Log.d(TAG, "Lets go!");
     }
+
+
 
     @Override
     protected void onStart() {
@@ -63,17 +76,25 @@ public class MyActivity extends Activity implements GoogleApiClient.ConnectionCa
 
     @Override
     public void onMessageReceived(MessageEvent messageEvent) {
+        Log.d("VoiceForce", messageEvent.getPath());
         if (messageEvent.getPath().equals("text")) {
             try {
-                String text = new String(messageEvent.getData(), "UTF-8");
-                Log.d("sdf", "Received" + text);
-                FragmentManager fragmentManager = getFragmentManager();
-                FragmentTransaction fragmentTransaction = fragmentManager.beginTransaction();
-                CardFragment cardFragment = CardFragment.create("SFDC",
-                        text,
-                        R.drawable.microphone);
-                fragmentTransaction.add(R.id.frame_layout, cardFragment);
-                fragmentTransaction.commit();
+                final String text = new String(messageEvent.getData(), "UTF-8");
+                Log.d("VoiceForce", "Received" + text);
+
+                runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        image.setImageResource(R.drawable.microphone);
+                        image.setCircleColor(Color.BLUE);
+                        CardScrollView cardScrollView =
+                                (CardScrollView) findViewById(R.id.card_scroll_view);
+                        TextView textView = (TextView) findViewById(R.id.textDesc);
+                        textView.setText(text);
+                        cardScrollView.setVisibility(View.VISIBLE);
+                    }
+                });
+
             } catch (UnsupportedEncodingException e) {
                 e.printStackTrace();
             }
@@ -136,10 +157,15 @@ public class MyActivity extends Activity implements GoogleApiClient.ConnectionCa
             e.printStackTrace();
         }
         _witMic.startRecording();
+        image.setImageResource(R.drawable.microphone);
+        image.setCircleColor(Color.parseColor("#d9534f"));
         runOnUiThread(new Runnable() {
             @Override
             public void run() {
                 sendStart();
+                CardScrollView cardScrollView =
+                        (CardScrollView) findViewById(R.id.card_scroll_view);
+                cardScrollView.setVisibility(View.INVISIBLE);
             }
         });
         InputStream inputStream = _witMic.getInputStream();
@@ -150,10 +176,11 @@ public class MyActivity extends Activity implements GoogleApiClient.ConnectionCa
 
     public void micStopListening()
     {
-        _ft.interrupt(); // stop sending bytes to phones
+        image.setImageResource(R.drawable.processing);
+        image.setCircleColor(Color.parseColor("#e0e0e0"));
         _witMic.stopRecording(); // stop recording
+        _ft.interrupt(); // stop sending bytes to phones
         sendStop(); // send stop to phone
-        mTextView.setText("Stopped!");
     }
 
     @Override
@@ -187,7 +214,7 @@ public class MyActivity extends Activity implements GoogleApiClient.ConnectionCa
             int count = 0;
             byte[] buffer = new byte[1024];
             try {
-                while (-1 != (n = _in.read(buffer))) {
+                while ((-1 != (n = _in.read(buffer)))) {
                     Log.d("VoiceForce", "" + ++count);
                     sendBytesToHandled(buffer, n, count);
                 }

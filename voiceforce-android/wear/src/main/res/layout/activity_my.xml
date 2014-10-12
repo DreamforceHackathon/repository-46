@@ -11,13 +11,47 @@
         android:layout_height="match_parent"
         app:layout_box="bottom">
 
-        <Button
+        <android.support.wearable.view.CircledImageView
             android:id="@+id/push_button"
-            android:layout_width="50dp"
-            android:layout_height="50dp"
+            android:src="@drawable/microphone"
+            android:layout_height="wrap_content"
+            android:layout_width="wrap_content"
+            android:layout_alignParentLeft="true"
+            app:circle_radius="22dp"
+            app:circle_radius_pressed="26dp"
+            app:circle_color="#9cc472"
+            android:layout_gravity="center_horizontal|top"
+            android:clickable="true"
             android:onClick="buttonPressed"
-            android:text="Push"
-            />
+            android:theme="@style/Theme.Wearable" />
+
+
+        <android.support.wearable.view.CardScrollView
+            android:id="@+id/card_scroll_view"
+            android:layout_height="match_parent"
+            android:layout_width="match_parent"
+            app:layout_box="bottom">
+
+            <android.support.wearable.view.CardFrame
+                android:layout_height="wrap_content"
+                android:layout_width="fill_parent">
+
+                <LinearLayout
+                    android:layout_height="wrap_content"
+                    android:layout_width="match_parent"
+                    android:orientation="vertical"
+                    android:paddingLeft="5dp">
+                    <TextView
+                        android:id="@+id/textDesc"
+                        android:fontFamily="sans-serif-light"
+                        android:layout_height="wrap_content"
+                        android:layout_width="match_parent"
+                        android:text="Description"
+                        android:textColor="@color/black"
+                        android:textSize="14sp"/>
+                </LinearLayout>
+            </android.support.wearable.view.CardFrame>
+        </android.support.wearable.view.CardScrollView>
 
     </FrameLayout>
 </android.support.wearable.view.BoxInsetLayout>

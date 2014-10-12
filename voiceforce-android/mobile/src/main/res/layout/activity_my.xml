@@ -50,11 +50,4 @@
         android:scrollbars = "vertical"
         />
 
-    <TextView
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="350dp"
-        android:id="@+id/wearmonitoring"
-        android:text="wear monitor"/>
-
 </RelativeLayout>
