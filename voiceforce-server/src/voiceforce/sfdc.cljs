@@ -35,7 +35,8 @@
 
                  (and res (< (.-statusCode res) 300))
                  (let [body (js->clj body :keywordize-keys true)]
-                   (when body (put! out body)))
+                   (when body (put! out body))
+                   (close! out))
                  :else
                  (js/console.log
                   (str "ERROR sending req to salesforce (http " (.-statusCode res) ")")
@@ -150,9 +151,9 @@
                           trace
                           (->> (map #(select-keys % [:Id :Name :Title]))))
          ]
-        (set (if who
-               (conj attendees who)
-               attendees)))))
+        (not-empty
+         (set (->> (if who (conj attendees who) attendees)
+                   (filter not-empty)))))))
 
 (defn update-opportunity-size [opp-id to]
   (go (let [x (req "PATCH" (str "/sobjects/Opportunity/" opp-id)
