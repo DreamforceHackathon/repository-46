@@ -181,3 +181,27 @@
                                                                 :ActivityDate d})})
                   <!)]
         r)))
+
+;; -----------------------------------------------------------------------------
+;; Meeting
+
+(defn create-meeting [d contact-name account-name]
+  (go (let [acc-id (->> (search account-name)
+                        <!
+                        (filter (comp (partial = "Account") :type :attributes trace))
+                        first
+                        :Id)
+            cid (->> (search contact-name)
+                     <!
+                     (filter (comp (partial = "Contact") :type :attributes trace))
+                     first
+                     :Id)
+            op-id (-> (account->opportunity acc-id)
+                      <!
+                      :Id)
+            r (-> (req "POST" "/sobjects/Event" {:body (clj->js {:Subject "Meeting"
+                                                                 :WhatId op-id
+                                                                 :ActivityDateTime d
+                                                                 :WhoId cid
+                                                                 :AccountId acc-id})}))]
+        )))

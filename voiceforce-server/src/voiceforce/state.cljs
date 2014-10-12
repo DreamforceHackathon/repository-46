@@ -93,13 +93,13 @@
             op (<! (sf/name->opportunity account "Account"))
             op-id (:Id op)
             op-name (:Name op)]
-        {:state {:account account :op op-id}
+        {:state {:account account :op-name op-name :op op-id}
          :text "That sounds great!"})))
 
 (defn update-opportunity
   [entities state]
   (go (let [op-id (:op state)
-            op-name (:Name op)
+            op-name (:op-name state)
             amount (-> entities :amount_of_money first :value)]
         (<! (sf/update-opportunity-size op-id amount))
         {:state (merge state {:op op-id :op-name op-name :amount amount})
@@ -136,6 +136,14 @@
         {:state state
          :text text})))
 
+(defn create-meeting [entities state]
+  (go (let [contact-name (-> entities :contact first :value)
+            datetime (-> entities :datetime first :value)
+            account-name (-> entities :account first :value)
+            text (str "Meeting with " contact-name " scheduled on " (pretty-date datetime))]
+        (<! (sf/create-meeting datetime contact-name account-name))
+        {:state state :text text})))
+
 (defn handle
   [x]
   (go (let [{intent :intent entities :entities text :text state :state} x
@@ -164,6 +172,9 @@
 
           ["task"]
           (<! (task entities state))
+
+          ["create_meeting"]
+          (<! (create-meeting entities state))
 
           :else
           {:state state
