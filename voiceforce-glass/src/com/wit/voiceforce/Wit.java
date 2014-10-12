@@ -70,7 +70,8 @@ public class Wit extends AsyncTask<String, Void, String> {
 	private void connectWebSocket(final String request) {
 		  URI uri;
 		  try {
-		    uri = new URI("ws://192.168.1.25:1337");
+		    //uri = new URI("ws://192.168.1.25:1337");
+			  uri = new URI("ws://2289189c.ngrok.com");
 		  } catch (URISyntaxException e) {
 		    e.printStackTrace();
 		    return;
