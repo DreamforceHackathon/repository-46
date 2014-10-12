@@ -35,7 +35,7 @@
 
                  (and res (< (.-statusCode res) 300))
                  (let [body (js->clj body :keywordize-keys true)]
-                   (put! out body))
+                   (when body (put! out body)))
                  :else
                  (js/console.log
                   (str "ERROR sending req to salesforce (http " (.-statusCode res) ")")
@@ -144,3 +144,25 @@ SELECT RelationId FROM EventRelation WHERE EventId = '" eid "'
                    {:body (js/JSON.stringify (clj->js {"Amount" to}))
                     :headers {:Content-Type "application/json"}})]
         (<! x))))
+
+;; -----------------------------------------------------------------------------
+;; Chatter
+
+(defn chatter-send [name msg]
+  (go (let [cid (->> (search name)
+                     <!
+                     (filter (comp (partial = "User") :type :attributes trace))
+                     first
+                     :Id)]
+        (req "POST" "/chatter/users/me/messages" {:body (clj->js {:recipients [cid]
+                                                                  :body msg})}))))
+
+;; -----------------------------------------------------------------------------
+;; Task
+
+(defn set-task [uid d a]
+  (go (let [r (-> (req "POST" "/sobjects/Task" {:body (clj->js {:OwnerId uid
+                                                                :Subject a
+                                                                :ActivityDate d})})
+                  <!)]
+        r)))
