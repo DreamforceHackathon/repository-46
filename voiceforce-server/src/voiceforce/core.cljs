@@ -61,16 +61,16 @@
 ;;          js/JSON.stringify
 ;;          trace))
 
-;; (do! (-> {:intent "who_attend"
-;;           :text "driving to Uber"
-;;           :entities {:amount_of_money [{:value 200000}]}
-;;           :state (js/JSON.stringify
-;;                   (clj->js {:op "006o0000004nzO9AAI"
-;;                             :account "Twitter"
-;;                             :attendees [{:Name "Edna Frank", :Id "003o000000BTNrm"}]}))}
-;;          clj->js
-;;          js/JSON.stringify
-;;          trace))
+(do! (-> {:intent "who_attend"
+          :text "driving to Uber"
+          :entities {}
+          :state (js/JSON.stringify
+                  (clj->js {:op "006o0000004ny83AAA"
+                            :account "Twitter"
+                            :attendees null}))}
+         clj->js
+         js/JSON.stringify
+         trace))
 
 ;; (do! (-> {:intent "create_meeting"
 ;;           :text "driving to Uber"

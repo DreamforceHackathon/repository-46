@@ -87,7 +87,9 @@
                 peeps (if (= 1 cnt) "person is" "people are")]
             {:state (merge state {:op op-id :attendees attendees})
              :text (str cnt " " peeps " attending: " attendees-string)})
-          {:state state :text "I don't know what meeting you're interested in."}))))
+          {:state state :text (if account
+                                "I don't know what meeting you're interested in."
+                                "I don't know what the " account " meeting is.")}))))
 
 (defn tell-more
   [entities state]
@@ -170,20 +172,21 @@
               text (.format util "OK. I let %s know." name)]
           (<! (sf/chatter-send name msg))
           {:state state :text text})
-        {:state state :text "I'm sorry, who would you like me to contact?"})))
+        {:state state :text "I'm sorry, could you repeat?"})))
 
 (def days ["Sunday" "Monday" "Tuesday" "Wednesday" "Thursday" "Friday" "Saturday"])
 (defn pretty-date
   "Friday 30"
   [iso-d]
-  (let [d (-> iso-d js/Date.)
-        date (.getDate d)
-        date-str (case date
-                   (1 21 31) "st"
-                   (2 22) "nd"
-                   (3 23) "rd"
-                   "th")]
-    (str (get days (.getDay d)) " the " date date-str)))
+  (when iso-d
+    (let [d (-> iso-d js/Date.)
+          date (.getDate d)
+          date-str (case date
+                     (1 21 31) "st"
+                     (2 22) "nd"
+                     (3 23) "rd"
+                     "th")]
+      (str (get days (.getDay d)) " the " date date-str))))
 
 (defn task
   [entities state]
@@ -192,10 +195,12 @@
             datetime (if-let [x (:from datetime)]
                        x
                        datetime)
-            text (str "Reminder set for " (pretty-date datetime))
             wly "005o00000010d6YAAQ"]
-        (<! (sf/set-task wly datetime action))
-        {:state state :text text})))
+        (if (and action datetime)
+          (let [text (str "Reminder set for " (pretty-date datetime))]
+            (<! (sf/set-task wly datetime action))
+            {:state state :text text})
+          {:state state :text "Excuse me, what would you like to remind you?"}))))
 
 (defn create-meeting [entities state]
   (go (let [contact-name (-> entities :contact first :value)
