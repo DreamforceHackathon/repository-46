@@ -114,23 +114,9 @@ public class MyActivity extends Activity implements GoogleApiClient.ConnectionCa
         Wearable.DataApi.putDataItem(_gac, putRequest.asPutDataRequest());
     }
 
-    public void sendStop() {
-        Log.d("VoiceForce", "Sending stop to the phone");
-        final PutDataMapRequest putRequest = PutDataMapRequest.create("/stop" + Math.random());
-        final DataMap map = putRequest.getDataMap();
-        map.putDouble("c", Math.random());
-        Wearable.DataApi.putDataItem(_gac, putRequest.asPutDataRequest());
-    }
-
     @Override
     public void onDataChanged(DataEventBuffer dataEvents) {
         Log.d(TAG, "OnDataChange!");
-    }
-
-    @Override
-    public void stopListening() {
-        Log.d(TAG, "Stop recording now");
-        _witMic.stopRecording();
     }
 
     public void buttonPressed(View v) {
@@ -162,15 +148,28 @@ public class MyActivity extends Activity implements GoogleApiClient.ConnectionCa
         _ft.start();
     }
 
-    public void micStopListening() {
-        runOnUiThread(new Runnable() {
-            @Override
-            public void run() {
-                sendStop();
-            }
-        });
-        _witMic.stopRecording();
-        _ft.interrupt();
+    public void micStopListening()
+    {
+        _ft.interrupt(); // stop sending bytes to phones
+        _witMic.stopRecording(); // stop recording
+        sendStop(); // send stop to phone
+        mTextView.setText("Stopped!");
+    }
+
+    @Override
+    public void stopListening() {
+        // vad stopped
+        Log.d(TAG, "Stop recording now");
+        micStopListening();
+    }
+
+    public void sendStop()
+    {
+        Log.d("VoiceForce", "Sending stop to the phone");
+        final PutDataMapRequest putRequest = PutDataMapRequest.create("/stop");
+        final DataMap map = putRequest.getDataMap();
+        map.putDouble("c", Math.random());
+        Wearable.DataApi.putDataItem(_gac, putRequest.asPutDataRequest());
     }
 
     class ForwardAudioSampleThread extends Thread {
