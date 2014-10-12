@@ -6,7 +6,7 @@
 (def cons-key "3MVG9xOCXq4ID1uGUZEDkWbuTVfqOqP3IWRgPCy.sxHJ1edmupOjoYnEnuM1KrGWPF3QBa3yYEYHvz5lu038y")
 (def cons-secret "8065890795745227552")
 (def secret-token "rC7fjvarT8AOYemUI68abKEQ")
-(def access-token "00Do0000000ciyx!ARQAQC48oZL9PuxKbGwH3TAlbL497ckLadU_kH9r8R1UMkpIoxBU9LKBhjjpAPiBqnau2BRwzZccQC7iufnNX6Ok5LHZcYwf")
+(def access-token "00Do0000000ciyx!ARQAQHbflEPhjlZPEmn5YqY89OdJMALnwYFyt4.HTcQguKlcUE1jd.13Px7FdWCIuGlSslsxE2VpqBTL2U.KfuQQgbH0mi07")
 
 (defn sf-url [x]
   (str "https://na17.salesforce.com/services/data/v32.0" x))
@@ -185,27 +185,30 @@
 ;; -----------------------------------------------------------------------------
 ;; Meeting
 
-(defn create-meeting [d contact-name account-name]
+(defn create-meeting [d contact-name & [account-name]]
   (go (let [d (if (:from d)
                 (:from d)
                 d)
-            acc-id (->> (search account-name)
-                        <!
-                        (filter (comp (partial = "Account") :type :attributes trace))
-                        first
-                        :Id)
             cid (->> (search contact-name)
                      <!
                      (filter (comp (partial = "Contact") :type :attributes trace))
                      first
                      :Id)
-            op-id (-> (account->opportunity acc-id)
-                      <!
-                      :Id)
-            r (-> (req "POST" "/sobjects/Event" {:body (clj->js {:Subject "Meeting"
-                                                                 :WhatId op-id
-                                                                 :ActivityDateTime d
-                                                                 :WhoId cid
-                                                                 :DurationInMinutes 60
-                                                                 })}))]
-        )))
+            acc-id (->> (search account-name)
+                        <!
+                        (filter (comp (partial = "Account") :type :attributes trace))
+                        first
+                        :Id)
+            op-id (and acc-id
+                       (-> (account->opportunity acc-id)
+                           <!
+                           :Id))
+            payload {:Subject "Meeting"
+                     :ActivityDateTime d
+                     :WhoId cid
+                     :DurationInMinutes 60}
+            payload (if op-id
+                      (assoc payload :WhatId op-id)
+                      payload)
+            r (-> (req "POST" "/sobjects/Event" {:body (clj->js payload)}))]
+        r)))
