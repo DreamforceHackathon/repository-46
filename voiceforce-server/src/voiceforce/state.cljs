@@ -95,7 +95,7 @@
 
 (defn tell-more
   [entities state]
-  (go (if-let [attendees (:attendees state)]
+  (go (if-let [name (-> entities :name first :value)]
         (let [cid (or (and name
                            (->> state
                                 :attendees

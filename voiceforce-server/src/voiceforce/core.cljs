@@ -61,16 +61,26 @@
 ;;          js/JSON.stringify
 ;;          trace))
 
-(do! (-> {:intent "who_attend"
+;; (do! (-> {:intent "who_attend"
+;;           :text "driving to Uber"
+;;           :entities {}
+;;           :state (js/JSON.stringify
+;;                   (clj->js {:op "006o0000004ny83AAA"
+;;                             :account "Facebook"
+;;                             :attendees nil}))}
+;;          clj->js
+;;          js/JSON.stringify
+;;          trace))
+
+(do! (-> {:intent "tell_more"
           :text "driving to Uber"
-          :entities {}
+          :entities {:name [{:value "John"}]}
           :state (js/JSON.stringify
-                  (clj->js {:op "006o0000004ny83AAA"
-                            :account "Facebook"
-                            :attendees nil}))}
+                  (clj->js {:attendees [{:Name "Edna Frank", :Id "003o000000BTNrm"}]}))}
          clj->js
          js/JSON.stringify
          trace))
+
 
 ;; (do! (-> {:intent "create_meeting"
 ;;           :text "driving to Uber"
@@ -85,15 +95,6 @@
 ;;          js/JSON.stringify
 ;;          trace))
 
-
-;; (do! (-> {:intent "tell_more"
-;;           :text "driving to Uber"
-;;           :entities {:name [{:value "John"}]}
-;;           :state (js/JSON.stringify
-;;                   (clj->js {:attendees [{:Name "Edna Frank", :Id "003o000000BTNrm"}]}))}
-;;          clj->js
-;;          js/JSON.stringify
-;;          trace))
 
 ;; (do! (-> {:intent "inform"
 ;;           :text "driving to Uber"
