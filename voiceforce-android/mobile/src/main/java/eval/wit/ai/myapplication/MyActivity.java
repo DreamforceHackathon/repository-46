@@ -54,8 +54,7 @@ import ai.wit.sdk.WitMic;
 
 public class MyActivity extends ActionBarActivity implements IWitListener, ConnectionCallbacks, OnConnectionFailedListener, DataApi.DataListener {
 
-    public static String TAG = "handled";
-    Node node; // the connected device to send the message to
+    public static String TAG = "VoiceForce!";
     GoogleApiClient _gac;
     private WebSocketClient mWebSocketClient;
     private Timer _t;
@@ -185,7 +184,7 @@ public class MyActivity extends ActionBarActivity implements IWitListener, Conne
     public void onConnected(android.os.Bundle bundle) {
         TextView tv = (TextView) findViewById(R.id.status);
         tv.setText("Connected");
-        Log.d(TAG, "onConnected");
+        Log.d(TAG, "phone onConnected");
         Wearable.DataApi.addListener(_gac, this);
     }
 
@@ -216,6 +215,7 @@ public class MyActivity extends ActionBarActivity implements IWitListener, Conne
 
     @Override
     public void onDataChanged(DataEventBuffer dataEvents) {
+        Log.d("VoiceForce", "onDataChanged");
         for (DataEvent event : dataEvents) {
             Log.e("VoiceForce", "event " + event.getDataItem().getUri().getPath());
             if (event.getType() == DataEvent.TYPE_DELETED) {

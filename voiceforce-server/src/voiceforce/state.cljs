@@ -130,6 +130,9 @@
   [entities state]
   (go (let [action (-> entities :reminder first :value)
             datetime (-> entities :datetime first :value)
+            datetime (if-let [x (:from datetime)]
+                       x
+                       datetime)
             text (str "Reminder set for " (pretty-date datetime))
             wly "005o00000010d6YAAQ"]
         (<! (sf/set-task wly datetime action))
@@ -139,6 +142,9 @@
 (defn create-meeting [entities state]
   (go (let [contact-name (-> entities :contact first :value)
             datetime (-> entities :datetime first :value)
+            datetime (if-let [x (:from datetime)]
+                       x
+                       datetime)
             account-name (-> entities :account first :value)
             text (str "Meeting with " contact-name " scheduled on " (pretty-date datetime))]
         (<! (sf/create-meeting datetime contact-name account-name))
