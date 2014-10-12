@@ -50,7 +50,7 @@
   (go (if-let [account (or (e->account entities) (s->account state))]
         (let [op (<! (sf/name->opportunity account "Account"))
               op-id (:Id op)]
-          (if-let [update (<! (sf/get-latest-update op-id))]
+          (if-let [update (and op-id (<! (sf/get-latest-update op-id)))]
             (let [text (str "Good luck! Here is the latest update about this opportunity: " update)]
               {:state (merge state {:op op-id :account account})
                :text text})
