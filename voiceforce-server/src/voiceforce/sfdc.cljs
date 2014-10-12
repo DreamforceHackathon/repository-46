@@ -203,5 +203,6 @@
                                                                  :WhatId op-id
                                                                  :ActivityDateTime d
                                                                  :WhoId cid
-                                                                 :AccountId acc-id})}))]
+                                                                 :DurationInMinutes 60
+                                                                 })}))]
         )))
