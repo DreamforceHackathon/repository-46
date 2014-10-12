@@ -360,7 +360,7 @@ public class MyActivity extends ActionBarActivity implements IWitListener, Conne
                             ttobj.speak(toSpeak, TextToSpeech.QUEUE_FLUSH, null);
 
                         } catch (Exception e) {
-                            Log.e("VoiceForce", "VoiceForce : Error " + e.getMessage());
+                             Log.e("VoiceForce", "VoiceForce : Error " + e.getMessage());
                         }
                     }
                 });
