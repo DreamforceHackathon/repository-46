@@ -10,6 +10,7 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.IBinder;
 import android.speech.RecognizerIntent;
+import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 
@@ -22,6 +23,7 @@ public class MenuActivity extends Activity {
 	private MainService.VoiceForceBinder mVoiceForceService;
 	private boolean mAttachedToWindow;
     private boolean mOptionsMenuOpen;
+    private boolean shouldFinishOnMenuClose;
 	
 	private ServiceConnection mConnection = new ServiceConnection() {
         @Override
@@ -72,10 +74,17 @@ public class MenuActivity extends Activity {
 
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
+    	shouldFinishOnMenuClose = true;
         switch (item.getItemId()) {
         	case R.id.speak:
+        		shouldFinishOnMenuClose = false;
         		Intent intent = new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
         	    startActivityForResult(intent, SPEECH_REQUEST);
+        	    //TODO: just SpeechActivity, to avoid taps
+        		//Intent intent = new Intent(this, SpeechActivity.class);
+        	    //startActivity(intent.setFlags(
+        	    //        Intent.FLAG_ACTIVITY_CLEAR_TOP |
+        	    //        Intent.FLAG_ACTIVITY_SINGLE_TOP));
         		return true;
             case R.id.exit:
                 // Stop the service at the end of the message queue for proper options menu
@@ -97,7 +106,8 @@ public class MenuActivity extends Activity {
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         if (requestCode == SPEECH_REQUEST && resultCode == RESULT_OK) {
             List<String> results = data.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS);
-            mVoiceForceService.query(results.get(0));
+            mVoiceForceService.askWit(results.get(0));
+            cleanUp();
         }
         super.onActivityResult(requestCode, resultCode, data);
     }
@@ -105,13 +115,18 @@ public class MenuActivity extends Activity {
     @Override
     public void onOptionsMenuClosed(Menu menu) {
         super.onOptionsMenuClosed(menu);
-        mOptionsMenuOpen = false;
-
-        unbindService(mConnection);
-
-        // We must call finish() from this method to ensure that the activity ends either when an
+        
+        if (shouldFinishOnMenuClose) {
+        	cleanUp();
+        }
+    }
+    
+    private void cleanUp() {
+    	mOptionsMenuOpen = false;
+    	unbindService(mConnection);
+    	// We must call finish() from this method to ensure that the activity ends either when an
         // item is selected from the menu or when the menu is dismissed by swiping down.
-        finish();
+    	finish();
     }
     
 }

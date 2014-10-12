@@ -4,44 +4,32 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.net.URLEncoder;
 
 import org.apache.http.HttpResponse;
 import org.apache.http.client.HttpClient;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.impl.client.DefaultHttpClient;
-import org.json.JSONArray;
+import org.java_websocket.client.WebSocketClient;
+import org.java_websocket.handshake.ServerHandshake;
 import org.json.JSONException;
 import org.json.JSONObject;
 
-import com.google.android.glass.timeline.LiveCard;
-import com.koushikdutta.async.ByteBufferList;
-import com.koushikdutta.async.DataEmitter;
-import com.koushikdutta.async.callback.DataCallback;
-import com.koushikdutta.async.http.AsyncHttpClient;
-import com.koushikdutta.async.http.AsyncHttpClient.WebSocketConnectCallback;
-import com.koushikdutta.async.http.AsyncHttpGet;
-import com.koushikdutta.async.http.AsyncHttpRequest;
-import com.koushikdutta.async.http.WebSocket;
-import com.koushikdutta.async.http.socketio.Acknowledge;
-import com.koushikdutta.async.http.socketio.StringCallback;
+import com.wit.voiceforce.MainService.VoiceForceBinder;
 
-import android.net.Uri;
 import android.os.AsyncTask;
-import android.widget.RemoteViews;
+import android.util.Log;
 
 public class Wit extends AsyncTask<String, Void, String> {
 
-	private final String access_token = "BZVYQEJWQYWUBH3VKRU7NFC7K7657XV3";
+	private final String access_token = "4IQNHHTPMVK545O5SXPSLQ3HNBO7UA5L";
+
+	private VoiceForceBinder mBinder;
+	private WebSocketClient mWebSocketClient;
 	
-	private RemoteViews view;
-	private int viewID;
-	private LiveCard card;
-	
-	public Wit (RemoteViews view, int viewID, LiveCard card) {
-		this.view = view;
-		this.viewID = viewID;
-		this.card = card;
+	public Wit (VoiceForceBinder mBinder) {
+		this.mBinder = mBinder;
 	}
 	
 	@Override
@@ -61,7 +49,10 @@ public class Wit extends AsyncTask<String, Void, String> {
 			json.put("text", "Glass");
 			json.put("entities", outcome.get("entities"));
 			json.put("intent", outcome.get("intent"));
-			//json.put("state", "");
+			String state = mBinder.getState();
+			if (state != null) {
+				json.put("state", state);
+			}
 		} catch (JSONException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
@@ -71,39 +62,54 @@ public class Wit extends AsyncTask<String, Void, String> {
 	
 	@Override
 	protected void onPostExecute(String result) {
-		//view.setTextViewText(viewID, result);
-        //card.setViews(view);
 		final String request = buildRequest(result);
-		AsyncHttpClient.getDefaultInstance().websocket("ws://192.168.1.25:1337", "my-protocol", new WebSocketConnectCallback() {
-		    @Override
-		    public void onCompleted(Exception ex, WebSocket webSocket) {
-		        if (ex != null) {
-		            ex.printStackTrace();
-		            return;
-		        }
-		        webSocket.send(request);
-		        /*webSocket.setStringCallback(new StringCallback() {
-					@Override
-					public void onString(String arg0, Acknowledge arg1) {
-						view.setTextViewText(viewID, arg0);
-						card.setViews(view);
-					}
-		        });*/
-		        webSocket.setDataCallback(new DataCallback() {
-		        	@Override
-		            public void onDataAvailable(DataEmitter de, ByteBufferList byteBufferList) {
-		                //System.out.println("I got some bytes!");	                
-		                String str = byteBufferList.readString();
-		                view.setTextViewText(viewID, str);
-		                card.setViews(view);
-		                // note that this data has been read
-		                byteBufferList.recycle();
-		            }
-		        });
-		    }
-		});
-		
+        Log.i("VOICE FORCE", "Request: " + request);
+        connectWebSocket(request);
 	}
+	
+	private void connectWebSocket(final String request) {
+		  URI uri;
+		  try {
+		    uri = new URI("ws://192.168.1.25:1337");
+		  } catch (URISyntaxException e) {
+		    e.printStackTrace();
+		    return;
+		  }
+
+		  mWebSocketClient = new WebSocketClient(uri) {
+		    @Override
+		    public void onOpen(ServerHandshake serverHandshake) {
+		      Log.i("Websocket", "Opened");
+		      mWebSocketClient.send(request);
+		    }
+
+		    @Override
+		    public void onMessage(String s) {
+		    	Log.i("VOICE FORCE", "Message: " + s);
+		        JSONObject json;
+				try {
+					json = new JSONObject(s);
+					mBinder.setState(json.get("state").toString());
+					mBinder.readThat(json.get("text").toString());
+				} catch (JSONException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+		        this.close();
+		    }
+
+		    @Override
+		    public void onClose(int i, String s, boolean b) {
+		      Log.i("Websocket", "Closed " + s);
+		    }
+
+		    @Override
+		    public void onError(Exception e) {
+		      Log.i("Websocket", "Error " + e.getMessage());
+		    }
+		  };
+		  mWebSocketClient.connect();
+		}
 	
 	private String query(String q) throws IOException {
 		HttpClient client = new DefaultHttpClient();
