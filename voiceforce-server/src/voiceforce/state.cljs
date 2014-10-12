@@ -94,13 +94,14 @@
 
 (defn update-opportunity
   [entities state]
-  (go (let [account (-> entities :account first :value)
-            op-id (-> (sf/name->opportunity account "Account")
-                      <!
-                      :Id)
+  (go (let [account (or (:account state) (-> entities :account first :value))
+            op (-> (sf/name->opportunity account "Account")
+                   <!)
+            op-id (:Id op)
+            op-name (:Name op)
             amount (-> entities :amount_of_money first :value)]
         (<! (sf/update-opportunity-size op-id amount))
-        {:state (merge state {:op op-id :amount amount})
+        {:state (merge state {:op op-id :op-name op-name :amount amount})
          :text "Done"})))
 
 (defn inform
@@ -108,7 +109,9 @@
   (go (let [name (-> entities :name first :value)
             account (-> state :account)
             amount (-> state :amount)
-            msg "Hello!"
+            op-name (-> state :op-name)
+            msg (.format util "Update on %s: opportunity %s proposition changed to %s dollars."
+                         account op-name amount)
             text (.format util "OK. I let %s know." name)]
         (<! (sf/chatter-send name msg))
         {:state state
